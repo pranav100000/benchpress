@@ -48,6 +48,12 @@ cp .env.example .env
 nano .env  # or use your preferred editor
 ```
 
+## Dataset Download
+
+datasets/gpqa_dataset.zip contains the data files, and is password-proteced with this password: `deserted-untie-orchid`.
+
+Alternatively, the dataset is available on Hugging Face: https://huggingface.co/datasets/idavidrein/gpqa
+
 ### List available benchmark tasks
 
 ```bash
