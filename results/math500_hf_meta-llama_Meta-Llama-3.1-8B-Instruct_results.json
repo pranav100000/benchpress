@@ -1,0 +1,14 @@
+[
+  {
+    "example_id": "math500_1",
+    "model_id": "hf:meta-llama/Meta-Llama-3.1-8B-Instruct",
+    "model_output": "To find the value of $x^2 + 2xy + y^2$, we can use the given equations to simplify the expression.\n\nWe are given that $x^2 + y^2 = 25$ and $x + y = 7$.\n\nNotice that the expression $x^2 + 2xy + y^2$ is similar to the left-hand side of the first equation, but with an additional term $2xy$. \n\nWe can rewrite the expression as $(x^2 + y^2) + 2xy$.\n\nSince we know that $x^2 + y^2 = 25$, we can substitute this value into the expression to get:\n\n$(x^2 + y^2) + 2xy = 25 + 2xy$\n\nNow, we need to find the value of $2xy$. \n\nWe can use the second equation $x + y = 7$ to find the value of $xy$. \n\nSquaring both sides of the equation, we get:\n\n$(x + y)^2 = 7^2$\n\nExpanding the left-hand side, we get:\n\n$x^2 + 2xy + y^2 = 49$\n\nNow, we can substitute the value of $x^2 + y^2$ from the first equation into this equation to get:\n\n$25 + 2xy = 49$\n\nSubtracting 25 from both sides, we get:\n\n$2xy = 24$\n\nDividing both sides by 2, we get:\n\n$xy = 12$\n\nNow that we have the value of $xy$, we can substitute it into the expression $25 + 2xy$ to get:\n\n$25 + 2(12) = 25 + 24 = 49$\n\nTherefore, the value of $x^2 + 2xy + y^2$ is $\\boxed{49}$.",
+    "correct": true,
+    "metadata": {
+      "extracted_answer": "49",
+      "expected_answer": "49",
+      "category": "algebra",
+      "difficulty": "easy"
+    }
+  }
+]
