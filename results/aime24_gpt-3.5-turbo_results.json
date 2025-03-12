@@ -1,14 +1,38 @@
 [
   {
-    "example_id": "aime24_2020_1",
+    "example_id": "aime24_hf_2022_1",
     "model_id": "gpt-3.5-turbo",
-    "model_output": "We can rewrite the given expression as:\n\nn^5 - n^3 + n + 3 = (n^2 + 3n + 2)(n^3 - 2n^2 + 5n - 1) + 5n + 5\n\nFor n^2 + 3n + 2 to divide n^5 - n^3 + n + 3, the remainder 5n + 5 must be equal to 0. This implies that n = -1 is a solution.\n\nTherefore, the sum S is equal to -1. The remainder when -1 is divided by 1000 is 999.\n\nTherefore, the answer is 999.",
+    "model_output": "Let $P(x) = 2ax^2 + bx + c$ and $Q(x) = -2dx^2 + ex + f.$ Since $P(x)$ and $Q(x)$ pass through the points $(16,54)$ and $(20,53),$ we have the system of equations\n\\begin{align*} 2a(16)^2 + 16b + c &= 54, \\\\ -2d(16)^2 + 16e + f &= 54, \\\\ 2a(20)^2 + 20b + c &= 53, \\\\ -2d(20)^2 + 20e + f &= 53. \\end{align*}Solving this system, we find $a = -\\frac{1}{8},$ $b = \\frac{9}{2},$ $c = -18,$ $d = -\\frac{1}{8},$ $e = \\frac{7}{2},$ and $f = 18.$ Therefore, $P(0) = -18$ and $Q(0) = 18,$ so $P(0) + Q(0) = \\boxed{0}.$",
     "correct": false,
     "metadata": {
-      "extracted_answer": "999",
-      "expected_answer": "168",
-      "year": 2020,
+      "extracted_answer": "0",
+      "expected_answer": "116",
+      "year": 2022,
       "problem_number": 1
+    }
+  },
+  {
+    "example_id": "aime24_hf_2022_10",
+    "model_id": "gpt-3.5-turbo",
+    "model_output": "Let the centers of the spheres be $O_1$, $O_2$, and $O_3$, and let the points of tangency on the plane be $D$, $E$, and $F$ for spheres $O_1$, $O_2$, and $O_3$ respectively. Let $R$ be the radius of the congruent circles. Then, $AD = AE = AF = R$.\n[asy] size(200); import three; currentprojection = perspective(6,3,2); triple O1 = (0,0,0); triple O2 = (24,0,0); triple O3 = (12,16,0); triple A = (12,0,0); triple B = (12,12,0); triple C = (0,8,0); draw(circle(O1,11)); draw(circle(O2,13)); draw(circle(O3,19)); draw(circle(A,5)); draw(circle(B,5)); draw(circle(C,5)); dot(A); dot(B); dot(C); label(\"$A$\", A, S); label(\"$B$\", B, dir(0)); label(\"$C$\", C, W); label(\"$O_1$\", O1, S); label(\"$O_2$\", O2, S); label(\"$O_3$\", O3, N); label(\"$D$\", (12,5,0), E); label(\"$E$\", (12,9,0), E); label(\"$F$\", (6,8,0), W); [/asy]\nLet $M$ be the midpoint of $\\overline{BC}$. Since $O_1$, $O_2$, and $O_3$ are collinear, $M$ lies on the radical axis of circles $A$ and $B$. Thus, $AM^2 - BM^2 = AD^2 - BD^2$. Since $AM = BM = R$, $AD^2 - BD^2 = 0 \\Longrightarrow AD = BD$. Similarly, $BD = CD$, so $AD = BD = CD$. Thus, $A$, $B$, and $C$ are the centers of the spheres, and $AB = 2\\sqrt{140} = 2\\sqrt{AB} = 2R$.\nLet $O$ be the center of the sphere externally tangent to spheres $O_1$, $O_2$, and $O_3$. Then, $AO = 11 + R$, $BO = 13 + R$, and $CO = 19 + R$. By the Pythagorean Theorem on right triangle $ABC$, \\[AC^2 = (AB)^2 + (BC)^2 = (2R)^2 + (2\\sqrt{560})^2 = 4R^2 + 4 \\cdot 560 = 4R^2 + 2240.\\]\nBy the Pythagorean Theorem on right triangle $ABC$ and right triangle $O_1O_2O$, \\[AC^2 = AO^2 + OC^2 = (11 + R)^2 + (19 + R)^2 = 242 + 60R + 2R^2.\\]\nEquating the two expressions for $AC^2$, \\[242 + 60R + 2R^2 = 4R^2 + 2240 \\Longrightarrow 2R^2 - 60R - 1998 = 0 \\Longrightarrow R = 31.\\]\nThen, $AC^2 = 242 + 60 \\cdot 31 + 2 \\cdot 31^2 = \\boxed{2022}$.",
+    "correct": false,
+    "metadata": {
+      "extracted_answer": "2022",
+      "expected_answer": "756",
+      "year": 2022,
+      "problem_number": 10
+    }
+  },
+  {
+    "example_id": "aime24_hf_2022_11",
+    "model_id": "gpt-3.5-turbo",
+    "model_output": "Let $O$ be the center of the circle. Since $O$ lies on the angle bisector of $\\angle A,$ it follows that $AP=AQ=3.$ Let $r$ be the inradius of the circle. By the Two Tangent Theorem, we have $AP^2=PA\\cdot PB=3(3+r),$ so $r=3.$\n\nLet $X$ be the foot of the perpendicular from $O$ to $\\overline{AC}.$ Since $O$ is the incenter of $\\triangle APC,$ we have $PX=3.$ By the Pythagorean Theorem on $\\triangle PXQ,$ we have $XQ=\\sqrt{PQ^2-PX^2}=\\sqrt{9^2-3^2}=6\\sqrt{2}.$\n\nNow, we can find the area of $\\triangle AQC$ as follows:\n\\[[AQC]=\\frac{1}{2}\\cdot AQ\\cdot QC\\cdot\\sin\\angle AQC=\\frac{1}{2}\\cdot 3\\cdot 16\\cdot\\sin\\angle AQC=24\\sin\\angle AQC.\\]\nSince $\\angle AQC=\\angle AQP+\\angle PQC=\\angle AOP+\\angle POC=2\\angle AOC,$ we have $\\sin\\angle AQC=\\sin 2\\angle AOC=2\\sin\\angle AOC\\cos\\angle AOC.$ By the Extended Law of Sines on $\\triangle AOC,$ we have $2R=AC=AP+PC=3+16=19,$ so $R=\\frac{19}{2}.$ Thus, $\\sin\\angle AOC=\\frac{3}{19}$ and $\\cos\\angle AOC=\\frac{6\\sqrt{2}}{19}.$\n\nTherefore, the area of $\\triangle AQC$ is $24\\cdot 2\\cdot\\frac{3}{19}\\cdot\\frac{6\\sqrt{2}}{19}=\\frac{432\\sqrt{2}}{361}.$ Since $\\triangle AQC$ is isosceles, we have $[ABCD]=2[AQC]=\\frac{864\\sqrt{2}}{361},$ so the answer is $864+2+361=\\boxed{1227}.$",
+    "correct": false,
+    "metadata": {
+      "extracted_answer": "1227",
+      "expected_answer": "150",
+      "year": 2022,
+      "problem_number": 11
     }
   }
 ]

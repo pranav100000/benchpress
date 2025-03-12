@@ -4,42 +4,25 @@ import os
 import re
 from typing import Any, Dict, List, Optional
 
-from .base import BaseTask, Example, TaskResult
+from ..datasets.v2.math500_hf_dataset import Math500HfDataset
+from .base import BaseTask, TaskResult 
+from .math500_example import Math500Example
 from .registry import register_task
-
-
-class Math500Example(Example):
-    """An example from the MATH-500 dataset."""
-
-    def __init__(
-        self,
-        id: str,
-        question: str,
-        answer: str,
-        category: str,
-        difficulty: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
-        """Initialize a MATH-500 example."""
-        if metadata is None:
-            metadata = {}
-        metadata.update({"category": category, "difficulty": difficulty})
-        super().__init__(id=id, question=question, answer=answer, metadata=metadata)
-        self.category = category
-        self.difficulty = difficulty
 
 
 @register_task
 class Math500Task(BaseTask[Math500Example]):
     """MATH-500 benchmark task implementation."""
 
-    def __init__(self, data_path: Optional[str] = None):
+    def __init__(self, data_path: Optional[str] = None, limit: Optional[int] = None):
         """Initialize the MATH-500 task.
 
         Args:
             data_path: Path to the MATH-500 data directory
+            limit: Optional limit on the number of examples to load
         """
-        self._data_path = data_path or os.environ.get("BENCHPRESS_DATA_PATH", "./data")
+        self._data_path = data_path
+        self._limit = limit
 
     @property
     def name(self) -> str:
@@ -50,51 +33,93 @@ class Math500Task(BaseTask[Math500Example]):
     def description(self) -> str:
         """Return the task description."""
         return "A benchmark of 500 challenging math problems"
+        
+    @property
+    def prompt_template(self) -> str:
+        """Return the prompt template for the task."""
+        return """You are a mathematical problem solver working on challenging math problems.
+
+Problem:
+{question}
+
+Solve this problem step by step, showing your work clearly. Make sure to simplify your answer to its simplest form.
+
+After solving the problem, please clearly indicate your final answer using the format:
+\boxed{your_answer_here}
+
+Remember to derive the answer from first principles and verify your work."""
+        
+    def _normalize_math_answer(self, answer: str) -> str:
+        """Normalize a math answer for more robust comparison.
+        
+        Args:
+            answer: The answer string to normalize
+            
+        Returns:
+            Normalized answer string
+        """
+        if not answer:
+            return ""
+            
+        # Replace LaTeX fractions with division notation
+        answer = re.sub(r'\\frac{([^}]+)}{([^}]+)}', r'\1/\2', answer)
+        answer = re.sub(r'\\dfrac{([^}]+)}{([^}]+)}', r'\1/\2', answer)
+        
+        # Remove LaTeX formatting
+        answer = answer.replace('\\left', '')
+        answer = answer.replace('\\right', '')
+        answer = answer.replace('\\', '')
+        answer = answer.replace('{', '')
+        answer = answer.replace('}', '')
+        answer = answer.replace('$', '')
+        answer = answer.replace(' ', '')
+        
+        # Replace LaTeX special symbols
+        answer = answer.replace('pi', 'π')
+        
+        # Convert fractions to decimals for numerical comparison
+        try:
+            if '/' in answer:
+                parts = answer.split('/')
+                if len(parts) == 2 and all(part.strip().isdigit() for part in parts):
+                    num = int(parts[0].strip())
+                    denom = int(parts[1].strip())
+                    if denom != 0:  # Avoid division by zero
+                        answer = str(num / denom)
+        except:
+            # If conversion fails, keep the original
+            pass
+            
+        return answer.strip().lower()
 
     async def load_examples(self) -> List[Math500Example]:
-        """Load MATH-500 examples.
+        """Load MATH-500 examples from HuggingFace dataset.
 
         Returns:
             A list of MATH-500 examples
+            
+        Raises:
+            RuntimeError: If the dataset cannot be loaded
         """
-        # In a real implementation, this would load from a file
-        # For the simplified version, we'll return a few sample problems
-        examples = [
-            Math500Example(
-                id="math500_1",
-                question=(
-                    "If $x^2 + y^2 = 25$ and $x + y = 7$, "
-                    "find the value of $x^2 + 2xy + y^2$."
-                ),
-                answer="49",
-                category="algebra",
-                difficulty="easy",
-                metadata={"source": "sample"},
-            ),
-            Math500Example(
-                id="math500_2",
-                question=(
-                    "Find the sum of all positive integers $n$ such that "
-                    "$n^2 + 3n + 5$ is a perfect square."
-                ),
-                answer="4",
-                category="number_theory",
-                difficulty="medium",
-                metadata={"source": "sample"},
-            ),
-            Math500Example(
-                id="math500_3",
-                question=(
-                    "In triangle $ABC$, we have $AB = 13$, $BC = 14$, and $AC = 15$. "
-                    "Find the area of the triangle."
-                ),
-                answer="84",
-                category="geometry",
-                difficulty="easy",
-                metadata={"source": "sample"},
-            ),
-        ]
-        return examples
+        try:
+            # Always use the HuggingFace dataset
+            dataset = Math500HfDataset(data_path=self._data_path)
+            
+            # If limit is specified in constructor, sample that many examples
+            if self._limit is not None and self._limit > 0:
+                examples = await dataset.sample(self._limit)
+            else:
+                # Otherwise load all examples
+                examples = await dataset.load()
+                
+            if not examples:
+                raise RuntimeError("No examples were loaded from the MATH-500 dataset.")
+                
+            return examples
+            
+        except Exception as e:
+            # Provide a more detailed error message
+            raise RuntimeError(f"Error loading MATH-500 examples from Hugging Face dataset: {e}")
 
     async def evaluate_example(
         self, example: Math500Example, model_output: str
@@ -108,21 +133,51 @@ class Math500Task(BaseTask[Math500Example]):
         Returns:
             A task result containing the evaluation
         """
-        # Extract the final answer from the model output
-        # This is a simplified implementation - a real one would be more robust
-        answer_pattern = r"(?:answer|result|solution):\s*(.+?)(?:\.|$)"
-        match = re.search(answer_pattern, model_output.lower(), re.DOTALL)
-
+        # Extract the final answer from the model output with improved pattern matching
+        
+        # Pattern 1: Look for "boxed" answers, common in LaTeX
+        boxed_pattern = r"\\boxed{([^}]+)}"
+        match = re.search(boxed_pattern, model_output)
+        
+        if not match:
+            # Pattern 2: Look for "answer/solution/result: X"
+            answer_pattern = r"(?:answer|result|solution|final answer):\s*(.+?)(?:\.|$)"
+            match = re.search(answer_pattern, model_output.lower(), re.DOTALL)
+        
+        if not match:
+            # Pattern 3: Look for "the answer is X"
+            is_pattern = r"(?:the\s+)?(?:answer|result|solution)\s+is\s+(?:\$)?([^.$]+)(?:\$)?(?:\s*$|\s*\.)"
+            match = re.search(is_pattern, model_output.lower(), re.DOTALL)
+            
+        if not match:
+            # Pattern 4: Look for "= X" at the end of a line or followed by period
+            equals_pattern = r"=\s*(?:\$)?([^.$\n]+)(?:\$)?(?:\s*$|\s*\.|\n)"
+            match = re.search(equals_pattern, model_output)
+        
         extracted_answer = None
         if match:
             extracted_answer = match.group(1).strip()
+            
+            # For now, let's keep the LaTeX formatting for exact comparison
+            # Clean up any extra whitespace, etc.
+            extracted_answer = extracted_answer.replace('$', '').strip()
         else:
-            # If no explicit answer format, try to extract the last number
-            numbers = re.findall(r"\d+", model_output)
+            # If all pattern matching fails, try to extract the last number/fraction
+            # This is less reliable but serves as a fallback
+            number_pattern = r'(?:\d+(?:\.\d+)?)|(?:\d+/\d+)'
+            numbers = re.findall(number_pattern, model_output)
             extracted_answer = numbers[-1] if numbers else ""
 
-        # Simple exact match evaluation
-        correct = extracted_answer == example.answer
+        # Normalize both answers for comparison
+        normalized_extracted = self._normalize_math_answer(extracted_answer)
+        normalized_expected = self._normalize_math_answer(example.answer)
+        
+        # Compare normalized answers
+        correct = normalized_extracted == normalized_expected
+        
+        # If the normalized comparison fails, fall back to exact match
+        if not correct:
+            correct = extracted_answer == example.answer
 
         return TaskResult(
             example_id=example.id,

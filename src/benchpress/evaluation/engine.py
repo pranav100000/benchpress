@@ -50,9 +50,18 @@ class EvaluationEngine:
         Returns:
             An evaluation summary
         """
-        examples = await task.load_examples()
-        if limit is not None:
-            examples = examples[:limit]
+        # Check if the task supports limit in load_examples
+        import inspect
+        task_load_params = inspect.signature(task.load_examples).parameters
+        
+        if 'limit' in task_load_params:
+            # Task supports direct limiting during loading
+            examples = await task.load_examples(limit=limit)
+        else:
+            # Fallback to loading all examples then limiting
+            examples = await task.load_examples()
+            if limit is not None:
+                examples = examples[:limit]
 
         results = []
         for example in examples:
