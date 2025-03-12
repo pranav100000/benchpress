@@ -63,6 +63,9 @@ benchpress evaluate --task math500 --model openai:gpt-4
 # Evaluate on the AIME24 benchmark
 benchpress evaluate --task aime24 --model openai:gpt-4
 
+# Evaluate on multiple benchmarks simultaneously
+benchpress evaluate --task math500 --task aime24 --model openai:gpt-4
+
 # Or provide the API key directly
 benchpress evaluate --task aime24 --model openai:gpt-4 --api-key "your-api-key" --limit 1
 ```
@@ -79,6 +82,9 @@ benchpress evaluate --task aime24 --model compatible:llama-3-70b-instruct --api-
 # Using GLHF.chat to access Hugging Face models (requires GLHF credits)
 benchpress evaluate --task math500 --model glhf:mistralai/Mistral-7B-Instruct-v0.3 --api-key "your-glhf-api-key"
 benchpress evaluate --task aime24 --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --system-prompt "You are a math tutor specializing in competition math."
+
+# Run multiple benchmarks against a GLHF model
+benchpress evaluate --task math500 --task aime24 --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct
 
 # Note: GLHF.chat is a pay-per-token service - you'll need to add credits at https://glhf.chat/billing
 ```

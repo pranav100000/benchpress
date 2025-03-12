@@ -2,7 +2,7 @@
 
 import asyncio
 import sys
-from typing import Optional
+from typing import List, Optional
 
 import typer
 from rich.console import Console
@@ -35,33 +35,41 @@ def list_tasks() -> None:
 
 @app.command("evaluate")
 def evaluate(
-    task: str = typer.Option(..., "--task", "-t", help="Name of the task to evaluate"),
-    model: str = typer.Option(
+    task: List[str] = typer.Option(  # noqa: B008
+        ...,
+        "--task",
+        "-t",
+        help="Name of the task(s) to evaluate. Can be specified multiple times.",
+    ),
+    model: str = typer.Option(  # noqa: B008
         ...,
         "--model",
         "-m",
-        help="Model identifier (e.g., openai:gpt-4, glhf:mistralai/Mistral-7B-Instruct-v0.3)",
+        help="Model identifier (e.g., openai:gpt-4, glhf:mistralai/Mistral-7B-Instruct-v0.3)",  # noqa: E501
     ),
-    output_dir: Optional[str] = typer.Option(
+    output_dir: Optional[str] = typer.Option(  # noqa: B008
         None, "--output-dir", "-o", help="Directory to save results"
     ),
-    limit: Optional[int] = typer.Option(
+    limit: Optional[int] = typer.Option(  # noqa: B008
         None, "--limit", "-l", help="Maximum number of examples to evaluate"
     ),
-    api_key: Optional[str] = typer.Option(
+    api_key: Optional[str] = typer.Option(  # noqa: B008
         None, "--api-key", "-k", help="API key for the model"
     ),
-    api_base: Optional[str] = typer.Option(
+    api_base: Optional[str] = typer.Option(  # noqa: B008
         None, "--api-base", "-b", help="Base URL for the API"
     ),
-    system_prompt: Optional[str] = typer.Option(
+    system_prompt: Optional[str] = typer.Option(  # noqa: B008
         None, "--system-prompt", "-s", help="System prompt to use for the model"
     ),
 ) -> None:
-    """Evaluate a model on a benchmark task."""
-    # Check if task exists
-    if task not in task_registry:
-        console.print(f"[red]Error:[/red] Task '{task}' not found")
+    """Evaluate a model on one or more benchmark tasks."""
+    # Validate tasks
+    invalid_tasks = [t for t in task if t not in task_registry]
+    if invalid_tasks:
+        console.print(
+            f"[red]Error:[/red] Task(s) not found: {', '.join(invalid_tasks)}"
+        )
         console.print("Use 'benchpress list-tasks' to see available tasks")
         sys.exit(1)
 
@@ -99,35 +107,75 @@ def evaluate(
         console.print(f"[red]Error:[/red] {str(e)}")
         sys.exit(1)
 
-    # Initialize task
-    task_instance = task_registry[task]()
-
     # Initialize evaluation engine
     engine = EvaluationEngine(
         model=model_instance,
         output_dir=output_dir,
     )
 
-    console.print(f"Evaluating [cyan]{model}[/cyan] on task [cyan]{task}[/cyan]...")
+    # Prepare results table
+    results_table = Table(title=f"Evaluation Results for {model}")
+    results_table.add_column("Task", style="cyan")
+    results_table.add_column("Examples")
+    results_table.add_column("Correct")
+    results_table.add_column("Accuracy")
 
-    # Run evaluation
-    try:
-        summary = asyncio.run(engine.evaluate_task(task_instance, limit=limit))
+    all_summaries = []
+    errors = []
 
-        # Display results
+    # Evaluate each task
+    for task_name in task:
+        console.print(
+            f"Evaluating [cyan]{model}[/cyan] on task [cyan]{task_name}[/cyan]..."
+        )
+
+        # Initialize task
+        task_instance = task_registry[task_name]()
+
+        # Run evaluation
+        try:
+            summary = asyncio.run(engine.evaluate_task(task_instance, limit=limit))
+            all_summaries.append(summary)
+
+            # Add to results table
+            results_table.add_row(
+                summary.task_name,
+                str(summary.total_examples),
+                str(summary.correct),
+                f"{summary.accuracy:.2%}",
+            )
+
+        except Exception as e:
+            error_msg = str(e)
+            console.print(f"[red]Error evaluating {task_name}:[/red] {error_msg}")
+            errors.append((task_name, error_msg))
+
+    # Display results
+    if all_summaries:
         console.print("\n[green]Evaluation complete![/green]\n")
-        console.print(f"Task: {summary.task_name}")
-        console.print(f"Model: {summary.model_id}")
-        console.print(f"Examples: {summary.total_examples}")
-        console.print(f"Correct: {summary.correct}")
-        console.print(f"Accuracy: {summary.accuracy:.2%}")
+        console.print(results_table)
+
+        if len(all_summaries) > 1:
+            # Calculate overall accuracy across all tasks
+            total_examples = sum(s.total_examples for s in all_summaries)
+            total_correct = sum(s.correct for s in all_summaries)
+            overall_accuracy = (
+                total_correct / total_examples if total_examples > 0 else 0
+            )
+
+            console.print(f"\n[bold]Overall accuracy:[/bold] {overall_accuracy:.2%}")
 
         if output_dir:
             console.print(f"\nResults saved to: {output_dir}")
 
-    except Exception as e:
-        console.print(f"[red]Error during evaluation:[/red] {str(e)}")
-        sys.exit(1)
+    # Report any errors
+    if errors:
+        console.print("\n[red]Some tasks failed:[/red]")
+        for task_name, error_msg in errors:
+            console.print(f"  - {task_name}: {error_msg}")
+
+        if not all_summaries:
+            sys.exit(1)
 
 
 if __name__ == "__main__":

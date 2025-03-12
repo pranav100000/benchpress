@@ -65,7 +65,9 @@ class EvaluationEngine:
             self.output_dir.mkdir(parents=True, exist_ok=True)
             # Sanitize the model ID to create a valid filename
             sanitized_model_id = self.model.model_id.replace("/", "_").replace(":", "_")
-            output_file = self.output_dir / f"{task.name}_{sanitized_model_id}_results.json"
+            output_file = (
+                self.output_dir / f"{task.name}_{sanitized_model_id}_results.json"
+            )
             with open(output_file, "w") as f:
                 json.dump([asdict(result) for result in results], f, indent=2)
 

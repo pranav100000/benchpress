@@ -32,7 +32,8 @@ class GlhfModel(BaseModel):
         """Initialize GLHF.chat model.
 
         Args:
-            model_name: The name of the model to use (will be prefixed with 'hf:' if not already)
+            model_name: The name of the model to use (will be prefixed with 'hf:'
+                if not already)
             api_key: API key for authentication (if None, uses env var GLHF_API_KEY)
             api_base: Base URL for API (if None, uses DEFAULT_API_BASE)
             system_prompt: Optional system prompt to include in all requests
