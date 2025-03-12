@@ -2,25 +2,13 @@
   {
     "example_id": "math500_1",
     "model_id": "gpt-3.5-turbo",
-    "model_output": "We can rewrite $x^2 + 2xy + y^2$ as $(x+y)^2$. \n\nGiven that $x + y = 7$, we can substitute this into $(x+y)^2$ to get $(7)^2 = 49$. \n\nTherefore, the value of $x^2 + 2xy + y^2$ is $\\boxed{49}$.",
+    "model_output": "We can rewrite $x^2 + 2xy + y^2$ as $(x+y)^2$. \n\nGiven that $x + y = 7$, we know that $(x+y)^2 = 7^2 = 49$.\n\nTherefore, the value of $x^2 + 2xy + y^2$ is $\\boxed{49}$.",
     "correct": true,
     "metadata": {
       "extracted_answer": "49",
       "expected_answer": "49",
       "category": "algebra",
       "difficulty": "easy"
-    }
-  },
-  {
-    "example_id": "math500_2",
-    "model_id": "gpt-3.5-turbo",
-    "model_output": "Let $n^2 + 3n + 5 = k^2$ for some positive integer $k$. Rearranging, we have $n^2 + 3n + (5 - k^2) = 0$. \n\nBy the quadratic formula, the solutions for $n$ are given by $n = \\frac{-3 \\pm \\sqrt{9 - 4(5 - k^2)}}{2} = \\frac{-3 \\pm \\sqrt{4k^2 - 11}}{2}$. \n\nFor $n$ to be a positive integer, the discriminant $4k^2 - 11$ must be a perfect square. Let $4k^2 - 11 = m^2$ for some positive integer $m$. Rearranging, we have $4k^2 - m^2 = 11$. \n\nThis is a difference of squares, so we can factor it as $(2k + m)(2k - m) = 11$. The factors of 11 are 1 and 11, so we have two cases to consider:\n\nCase 1: $2k + m = 11$ and $2k - m = 1$. Solving this system of equations gives $k = 3$ and $m = 5$. Substituting back, we find $n = \\frac{-3 \\pm \\sqrt{44}}{2}$, which does not yield a positive integer solution.\n\nCase 2: $2k + m = 1$ and $2k - m = 11$. Solving this system of equations gives $k = 5$ and $m = 9$. Substituting back, we find $n = \\frac{-3 \\pm \\sqrt{116}}{2}$, which yields $n = 7$ and $n = -10$. Since we are looking for positive integers, the only valid solution is $n = 7$.\n\nTherefore, the sum of all positive integers $n$ such that $n^2 + 3n + 5$ is a perfect square is $\\boxed{7}$.",
-    "correct": false,
-    "metadata": {
-      "extracted_answer": "7",
-      "expected_answer": "4",
-      "category": "number_theory",
-      "difficulty": "medium"
     }
   }
 ]

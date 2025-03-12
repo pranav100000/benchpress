@@ -1,0 +1,14 @@
+[
+  {
+    "example_id": "gpqa_physics_1",
+    "model_id": "gpt-3.5-turbo",
+    "model_output": "The force experienced by a charged particle moving in a magnetic field is given by the equation:\n\nF = qv x B\n\nWhere v is the velocity of the particle, B is the magnetic field, and x represents the cross product.\n\nGiven that the velocity of the particle is v = (2 \u00d7 10^5 \u00ee + 3 \u00d7 10^5 \u0135 + 4 \u00d7 10^5 k\u0302) m/s and the magnetic field is B = 1.5 T along the positive z-axis, we can calculate the force experienced by the particle:\n\nv x B = (3 \u00d7 10^5 * 1.5) \u00ee - (2 \u00d7 10^5 * 1.5) \u0135 = 4.5 \u00d7 10^5 \u00ee - 3 \u00d7 10^5 \u0135\n\nF = q(v x B) = 3.2 \u00d7 10^-19 * (4.5 \u00d7 10^5 \u00ee - 3 \u00d7 10^5 \u0135) = 1.44 \u00d7 10^-13 \u00ee - 9.6 \u00d7 10^-14 \u0135\n\nThe centripetal force required to keep the particle moving in a circular path is provided by this magnetic force. Therefore, we can equate the magnetic force to the centripetal force:\n\nF = mv^2 / r\n\nWhere r is the radius of the circular path.\n\nSetting the two forces equal to each other:\n\n1.44 \u00d7 10^-13 \u00ee - 9.6 \u00d7 10^-14 \u0135 = (6.64 \u00d7 10^-27) * (2 \u00d7 10^5)^2 / r\n\nSolving for r:\n\nr = (6.64 \u00d7 10^-27) * (2 \u00d7 10^5)^2 / sqrt((1.44 \u00d7 10^-13)^2 + (9.6 \u00d7 10^-14)^2)\n\nr = 1.32 \u00d7 10^-21 / sqrt(2.0736 \u00d7 10^-26 + 9.216 \u00d7 10^-28)\n\nr = 1.32 \u00d7 10^-21 / sqrt(2.162 \u00d7 10^-26)\n\nr = 1.32 \u00d7 10^-21 / 4.65 \u00d7 10^-13\n\nr = 2.84 \u00d7 10^-9 meters\n\nTherefore, the radius of the circular component of the particle's motion is 2.84 \u00d7 10^-9 meters.",
+    "correct": false,
+    "metadata": {
+      "extracted_answer": "Setting the two forces equal to each other:\n\n1.44 \u00d7 10^-13 \u00ee - 9.6 \u00d7 10^-14 \u0135 = (6.64 \u00d7 10^-27) * (2 \u00d7 10^5)^2 / r\n\nSolving for r:\n\nr = (6.64 \u00d7 10^-27) * (2 \u00d7 10^5)^2 / sqrt((1.44 \u00d7 10^-13)^2 + (9.6 \u00d7 10^-14)^2)\n\nr = 1.32 \u00d7 10^-21 / sqrt(2.0736 \u00d7 10^-26 + 9.216 \u00d7 10^-28)\n\nr = 1.32 \u00d7 10^-21 / sqrt(2.162 \u00d7 10^-26)\n\nr = 1.32 \u00d7 10^-21 / 4.65 \u00d7 10^-13\n\nr = 2.84 \u00d7 10^-9 meters\n\nTherefore, the radius of the circular component of the particle's motion is 2.84 \u00d7 10^-9 meters.",
+      "expected_answer": "2.5 \u00d7 10^-4",
+      "subject": "physics",
+      "difficulty": "hard"
+    }
+  }
+]

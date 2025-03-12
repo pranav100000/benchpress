@@ -11,6 +11,7 @@ Benchpress is a modern Python framework for evaluating Large Language Models (LL
 - Support for multiple benchmarks:
   - MATH-500: A benchmark of 500 challenging math problems
   - AIME24: A benchmark based on the American Invitational Mathematics Examination
+  - GPQA Diamond: A benchmark of graduate-level problems across various academic disciplines
 - Support for multiple model providers:
   - OpenAI API (GPT models)
   - GLHF.chat (access to Hugging Face models)
@@ -63,8 +64,11 @@ benchpress evaluate --task math500 --model openai:gpt-4
 # Evaluate on the AIME24 benchmark
 benchpress evaluate --task aime24 --model openai:gpt-4
 
+# Evaluate on the GPQA Diamond benchmark
+benchpress evaluate --task gpqa --model openai:gpt-4
+
 # Evaluate on multiple benchmarks simultaneously
-benchpress evaluate --task math500 --task aime24 --model openai:gpt-4
+benchpress evaluate --task math500 --task aime24 --task gpqa --model openai:gpt-4
 
 # Or provide the API key directly
 benchpress evaluate --task aime24 --model openai:gpt-4 --api-key "your-api-key" --limit 1
@@ -84,10 +88,34 @@ benchpress evaluate --task math500 --model glhf:mistralai/Mistral-7B-Instruct-v0
 benchpress evaluate --task aime24 --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --system-prompt "You are a math tutor specializing in competition math."
 
 # Run multiple benchmarks against a GLHF model
-benchpress evaluate --task math500 --task aime24 --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct
+benchpress evaluate --task math500 --task aime24 --task gpqa --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --limit 5
+
+# Save results to a specific directory
+benchpress evaluate --task math500 --task gpqa --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --output-dir ./my_results
 
 # Note: GLHF.chat is a pay-per-token service - you'll need to add credits at https://glhf.chat/billing
 ```
+
+## Multi-Task Evaluation
+
+Benchpress supports evaluating models on multiple tasks in a single command:
+
+```bash
+# Run all available benchmarks
+benchpress evaluate --task math500 --task aime24 --task gpqa --model openai:gpt-4 --output-dir results
+
+# Run multiple benchmarks with a limit
+benchpress evaluate --task math500 --task gpqa --model openai:gpt-4 --limit 10
+
+# Compare different models on the same tasks
+benchpress evaluate --task math500 --task aime24 --model openai:gpt-4 --output-dir results/gpt4
+benchpress evaluate --task math500 --task aime24 --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --output-dir results/llama
+```
+
+This produces:
+- Individual results files for each task-model combination
+- A combined accuracy report showing performance across all tasks
+- An overall accuracy metric that aggregates results from all evaluated examples
 
 ## Adding New Tasks
 
@@ -147,3 +175,4 @@ MIT License
 
 - The MATH-500 benchmark is based on the [MATH dataset](https://github.com/hendrycks/math) by Hendrycks et al.
 - The AIME24 benchmark is based on the American Invitational Mathematics Examination (AIME) administered by the Mathematical Association of America.
+- The GPQA Diamond benchmark is inspired by the [GPQA dataset](https://github.com/openai/GPQA) that evaluates models on graduate-level problems across various academic disciplines.
