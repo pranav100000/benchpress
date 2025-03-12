@@ -2,6 +2,7 @@
 
 import os
 import re
+import csv
 from typing import Any, Dict, List, Optional
 
 from .base import BaseTask, Example, TaskResult
@@ -48,7 +49,10 @@ class GpqaTask(BaseTask[GpqaExample]):
         Args:
             data_path: Path to the GPQA Diamond data directory
         """
-        self._data_path = data_path or os.environ.get("BENCHPRESS_DATA_PATH", "./data")
+        self._data_path = data_path or os.environ.get(
+            "BENCHPRESS_DATA_PATH", 
+            "/Users/pranavsharan/Developer/benchpress/datasets/gpqa_dataset"
+        )
 
     @property
     def name(self) -> str:
@@ -61,88 +65,44 @@ class GpqaTask(BaseTask[GpqaExample]):
         return "Diamond: Graduate-level Problem-solving Questions and Answers benchmark"
 
     async def load_examples(self) -> List[GpqaExample]:
-        """Load GPQA Diamond examples.
+        """Load GPQA Diamond examples from CSV file.
 
         Returns:
             A list of GPQA Diamond examples
         """
-        # In a real implementation, this would load from a file
-        # For the simplified version, we'll return a few sample problems
-        examples = [
-            GpqaExample(
-                id="gpqa_physics_1",
-                question=(
-                    "A uniform magnetic field B = 1.5 T is directed along the positive z-axis. "
-                    "A particle with charge q = 3.2 × 10^-19 C and mass m = 6.64 × 10^-27 kg "
-                    "is moving in this field with a velocity v = (2 × 10^5 î + 3 × 10^5 ĵ + 4 × 10^5 k̂) m/s. "
-                    "Calculate the radius of the circular component of the particle's motion."
-                ),
-                answer="2.5 × 10^-4",
-                subject="physics",
-                difficulty="hard",
-                metadata={"topic": "electromagnetism", "source": "sample"},
-            ),
-            GpqaExample(
-                id="gpqa_biology_1",
-                question=(
-                    "In a population genetic study, a researcher found a gene with two alleles, A and a. "
-                    "The frequency of the A allele is 0.7 and the frequency of the a allele is 0.3. "
-                    "Assuming Hardy-Weinberg equilibrium, what is the expected frequency of heterozygotes (Aa) "
-                    "in the population?"
-                ),
-                answer="0.42",
-                subject="biology",
-                difficulty="medium",
-                metadata={"topic": "population genetics", "source": "sample"},
-            ),
-            GpqaExample(
-                id="gpqa_chemistry_1",
-                question=(
-                    "Calculate the pH of a buffer solution prepared by mixing 0.15 mol of acetic acid "
-                    "(CH3COOH) with 0.20 mol of sodium acetate (CH3COONa) in water to make 500 mL of solution. "
-                    "The Ka of acetic acid is 1.8 × 10^-5."
-                ),
-                answer="4.88",
-                subject="chemistry",
-                difficulty="medium",
-                metadata={"topic": "acid-base equilibria", "source": "sample"},
-            ),
-            GpqaExample(
-                id="gpqa_cs_1",
-                question=(
-                    "Analyze the time complexity of the following algorithm to find the maximum subarray sum: "
-                    "\n\n```python\n"
-                    "def max_subarray_sum(arr):\n"
-                    "    n = len(arr)\n"
-                    "    max_so_far = float('-inf')\n"
-                    "    max_ending_here = 0\n"
-                    "    \n"
-                    "    for i in range(n):\n"
-                    "        max_ending_here = max(arr[i], max_ending_here + arr[i])\n"
-                    "        max_so_far = max(max_so_far, max_ending_here)\n"
-                    "    \n"
-                    "    return max_so_far\n"
-                    "```\n\n"
-                    "What is the time complexity in big O notation?"
-                ),
-                answer="O(n)",
-                subject="computer science",
-                difficulty="easy",
-                metadata={"topic": "algorithms", "source": "sample"},
-            ),
-            GpqaExample(
-                id="gpqa_economics_1",
-                question=(
-                    "A monopolist faces the demand curve P = 100 - Q and has a cost function "
-                    "C(Q) = 20 + 10Q + Q^2. What is the profit-maximizing quantity and price, "
-                    "and what is the resulting profit?"
-                ),
-                answer="Q = 22.5, P = 77.5, Profit = 992.5",
-                subject="economics",
-                difficulty="medium",
-                metadata={"topic": "microeconomics", "source": "sample"},
-            ),
-        ]
+        examples = []
+        csv_path = os.path.join(self._data_path, "gpqa_diamond.csv")
+        
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                # Skip header row if present
+                if i == 0 and "Question" not in row:
+                    continue
+                    
+                # Extract difficulty from writer's estimate, defaulting to "graduate"
+                difficulty = row.get("Writer's Difficulty Estimate", "graduate")
+                
+                # Create example with data from CSV
+                example = GpqaExample(
+                    id=f"gpqa_diamond_{row.get('Record ID', i)}",
+                    question=row.get("Question", ""),
+                    answer=row.get("Correct Answer", ""),
+                    subject=row.get("High-level domain", ""),
+                    difficulty=difficulty,
+                    metadata={
+                        "subdomain": row.get("Subdomain", ""),
+                        "incorrect_answers": [
+                            row.get("Incorrect Answer 1", ""),
+                            row.get("Incorrect Answer 2", ""),
+                            row.get("Incorrect Answer 3", "")
+                        ],
+                        "explanation": row.get("Explanation", ""),
+                        "record_id": row.get("Record ID", "")
+                    }
+                )
+                examples.append(example)
+                
         return examples
 
     async def evaluate_example(
