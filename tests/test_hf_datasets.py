@@ -3,12 +3,11 @@
 import pytest
 from pathlib import Path
 
-from benchpress.datasets.v2 import (
+from benchpress.datasets import (
     dataset_registry,
-    HuggingFaceDataset,
     Math500HfDataset
 )
-from benchpress.tasks.math500_example import Math500Example
+from benchpress.examples.math500 import Math500Example
 from benchpress.tasks.math500 import Math500Task
 
 
@@ -21,69 +20,56 @@ async def test_math500_hf_dataset_registry():
 
 
 @pytest.mark.asyncio
-async def test_math500_hf_dataset_properties():
-    """Test the MATH-500 HF dataset properties."""
+async def test_math500_hf_dataset_loading():
+    """Test loading the MATH-500 dataset from HuggingFace."""
+    # Skip if datasets library is not available
+    pytest.importorskip("datasets")
+    
+    # Test with a small limit
+    limit = 2
     dataset = Math500HfDataset()
     
-    # Check properties
-    assert dataset.name == "math500_hf"
-    assert dataset.dataset_name == "HuggingFaceH4/MATH-500"
+    # Sample a few examples for faster testing
+    examples = await dataset.sample(limit)
+    
+    # Check we have examples
+    assert len(examples) == limit
+    
+    # Check the data structure
+    for example in examples:
+        assert isinstance(example, Math500Example)
+        # Check for HF dataset ID format
+        assert example.id.startswith("math500_hf_")
+        # Check for required fields
+        assert hasattr(example, "category")
+        assert hasattr(example, "difficulty")
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="Skip by default as it requires downloading the dataset")
-async def test_math500_hf_dataset_load():
-    """Test loading the MATH-500 HF dataset.
+async def test_math500_task_with_hf_dataset():
+    """Test that the MATH-500 task properly uses the HF dataset."""
+    # Skip if datasets library is not available
+    pytest.importorskip("datasets")
     
-    Note: This test is skipped by default as it requires downloading the dataset.
-    Remove the skip decorator to run this test.
-    """
-    dataset = Math500HfDataset()
-    
-    # Get size first (faster than loading all examples)
-    size = await dataset.get_size()
-    assert size > 0
-    
-    # Test loading a single example
-    example = await dataset.get_item(0)
-    assert isinstance(example, Math500Example)
-    assert example.id.startswith("math500_hf_")
-    assert hasattr(example, "category")
-    assert hasattr(example, "difficulty")
-    
-    # Test loading a small batch of examples
-    examples = await dataset.sample(5, seed=42)
-    assert len(examples) == 5
-    assert all(isinstance(ex, Math500Example) for ex in examples)
-
-
-@pytest.mark.asyncio
-@pytest.mark.skip(reason="Skip by default as it requires downloading the dataset")
-async def test_math500_task_with_hf():
-    """Test the MATH-500 task with HuggingFace dataset.
-    
-    Note: This test is skipped by default as it requires downloading the dataset.
-    Remove the skip decorator to run this test.
-    """
-    # Create the task
-    task = Math500Task()
+    # Create task with a small limit
+    task = Math500Task(limit=2)
     
     # Load examples
     examples = await task.load_examples()
     
-    # Check that we have examples
-    assert len(examples) > 0
+    # Check we have examples
+    assert len(examples) == 2
     
-    # Check that all examples are of the correct type
+    # Check they're from the HF dataset
     for example in examples:
         assert isinstance(example, Math500Example)
         assert example.id.startswith("math500_hf_")
 
 
 @pytest.mark.asyncio
-async def test_math500_task_fallback(monkeypatch):
-    """Test the MATH-500 task fallback to sample examples."""
-    # Mock HF dataset to trigger the fallback
+async def test_math500_task_error_handling(monkeypatch):
+    """Test the MATH-500 task error handling when dataset fails to load."""
+    # Mock HF dataset to trigger an error
     async def mock_load_error(*args, **kwargs):
         raise Exception("Simulated HF dataset error")
     
@@ -92,16 +78,17 @@ async def test_math500_task_fallback(monkeypatch):
     # Create the task
     task = Math500Task()
     
-    # Load examples
-    examples = await task.load_examples()
+    # Since we removed the fallback, loading should fail
+    with pytest.raises(RuntimeError) as excinfo:
+        await task.load_examples()
     
-    # Check that we have examples
-    assert len(examples) > 0
-    
-    # Check that all examples are of the correct type
-    for example in examples:
-        assert isinstance(example, Math500Example)
-        # These will have the sample IDs, not HF IDs
-        assert example.id.startswith("math500_")
-        assert hasattr(example, "category")
-        assert hasattr(example, "difficulty")
+    # Check the error message
+    assert "Simulated HF dataset error" in str(excinfo.value)
+
+
+# Skip the dataset test if we don't have the datasets library
+pytestmark = pytest.mark.skipif(
+    pytest.importorskip("datasets", reason="datasets library not available")
+    is None,
+    reason="datasets library not available",
+)

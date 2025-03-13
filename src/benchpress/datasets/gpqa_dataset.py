@@ -1,8 +1,9 @@
-"""GPQA dataset implementation for benchpress."""
+"""GPQA dataset implementation for benchpress v2."""
 
 from typing import Dict, Any
 
-from ..tasks.gpqa_example import GpqaExample
+from ..examples.gpqa import GpqaExample
+from .base import Dataset
 from .csv_dataset import CsvDataset
 
 

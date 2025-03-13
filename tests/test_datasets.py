@@ -10,7 +10,7 @@ from benchpress.datasets import (
     dataset_registry,
     GpqaDataset
 )
-from benchpress.tasks.gpqa_example import GpqaExample
+from benchpress.examples.gpqa import GpqaExample
 
 
 @pytest.mark.asyncio
