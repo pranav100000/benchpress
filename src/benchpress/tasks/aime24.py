@@ -2,9 +2,9 @@
 
 import os
 import re
-from typing import Any, Dict, List, Optional, cast
+from typing import List, Optional
 
-from .aime24_example import Aime24Example
+from ..examples.aime24 import Aime24Example
 from .base import BaseTask, TaskResult
 from .registry import register_task
 
@@ -33,7 +33,7 @@ class Aime24Task(BaseTask[Aime24Example]):
     def description(self) -> str:
         """Return the task description."""
         return "A benchmark based on the American Invitational Mathematics Examination"
-        
+
     @property
     def prompt_template(self) -> str:
         """Return the prompt template for the task."""
@@ -51,20 +51,20 @@ Remember, AIME problems require exact answers, not decimal approximations."""
 
     async def get_dataset(self):
         """Get the dataset for this task.
-        
+
         Returns:
             The dataset instance
         """
         # Import here to avoid circular imports
-        from ..datasets.v2 import dataset_registry
-        
+        from ..datasets import dataset_registry
+
         try:
             # Try to get the HF dataset first
             dataset_class = dataset_registry.get("aime24_hf")
             # Create an instance
             dataset = dataset_class(data_path=self._data_path)
             return dataset
-        except (ImportError, ValueError, KeyError) as e:
+        except (ImportError, ValueError, KeyError):
             # If HF dataset is not available, fall back to the sample dataset
             return None
 
@@ -73,29 +73,33 @@ Remember, AIME problems require exact answers, not decimal approximations."""
 
         Returns:
             A list of AIME24 examples
-            
+
         Raises:
             RuntimeError: If the dataset cannot be loaded
         """
         # Load from the Hugging Face dataset
         dataset = await self.get_dataset()
-        
+
         if not dataset:
-            raise RuntimeError("AIME24 dataset could not be initialized. Make sure the 'datasets' library is installed and you have internet access.")
-        
+            raise RuntimeError(
+                "AIME24 dataset could not be initialized. Make sure the 'datasets' library is installed and you have internet access."
+            )
+
         try:
             examples = await dataset.load()
             # Apply limit if specified
             if self._limit is not None and examples:
-                examples = examples[:self._limit]
-            
+                examples = examples[: self._limit]
+
             if not examples:
                 raise RuntimeError("No examples were loaded from the AIME24 dataset.")
-                
+
             return examples
         except Exception as e:
             # Provide a more detailed error message
-            raise RuntimeError(f"Error loading AIME24 examples from Hugging Face dataset: {e}")
+            raise RuntimeError(
+                f"Error loading AIME24 examples from Hugging Face dataset: {e}"
+            )
 
     async def evaluate_example(
         self, example: Aime24Example, model_output: str
@@ -111,28 +115,30 @@ Remember, AIME problems require exact answers, not decimal approximations."""
         """
         # AIME problems typically have integer answers, often 3 digits
         # Extract the final answer from the model output
-        
+
         # Try several patterns to extract the answer
-        
+
         # Pattern 1: Look for "boxed" answers, common in LaTeX
         boxed_pattern = r"\\boxed{(\d+)}"
         match = re.search(boxed_pattern, model_output)
-        
+
         if not match:
             # Pattern 2: Look for "answer/solution/result: X"
             answer_pattern = r"(?:answer|result|solution|final answer):\s*(\d+)"
             match = re.search(answer_pattern, model_output.lower(), re.DOTALL)
-        
+
         if not match:
             # Pattern 3: Look for "the answer is X"
-            is_pattern = r"(?:the\s+)?(?:answer|result|solution)\s+is\s+(?:\$)?(\d+)(?:\$)?"
+            is_pattern = (
+                r"(?:the\s+)?(?:answer|result|solution)\s+is\s+(?:\$)?(\d+)(?:\$)?"
+            )
             match = re.search(is_pattern, model_output.lower(), re.DOTALL)
-            
+
         if not match:
             # Pattern 4: Look for "= X" at the end of a line or followed by period
             equals_pattern = r"=\s*(?:\$)?(\d+)(?:\$)?(?:\s*$|\s*\.)"
             match = re.search(equals_pattern, model_output)
-        
+
         extracted_answer = None
         if match:
             extracted_answer = match.group(1).strip()

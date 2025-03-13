@@ -3,7 +3,7 @@
 import re
 from typing import Dict, Any, Optional, Union, cast
 
-from ...tasks.aime24_example import Aime24Example
+from ..examples.aime24 import Aime24Example
 from .huggingface_dataset import HuggingFaceDataset
 from .base import DatasetRegistry
 

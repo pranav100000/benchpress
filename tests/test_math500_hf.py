@@ -4,7 +4,8 @@ import pytest
 import os
 import asyncio
 
-from benchpress.datasets.v2.math500_hf_dataset import Math500HfDataset
+from benchpress.datasets.math500_hf_dataset import Math500HfDataset
+from benchpress.examples.math500 import Math500Example
 from benchpress.tasks.math500 import Math500Task
 
 

@@ -4,12 +4,11 @@ import os
 import random
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Generic, Iterator, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
-from ..tasks.base import Example
-
-# Type variable for dataset example type
-T = TypeVar("T", bound=Example)
+# Type variable for dataset example type - without binding to Example class
+# to avoid circular imports
+T = TypeVar("T")
 
 
 class Dataset(Generic[T], ABC):
@@ -101,7 +100,6 @@ class Dataset(Generic[T], ABC):
         return [ex for ex in examples if predicate(ex)]
 
 
-# Dataset registry (similar to task registry)
 class DatasetRegistry:
     """Registry for datasets."""
 
@@ -157,19 +155,3 @@ class DatasetRegistry:
             True if the dataset is registered, False otherwise
         """
         return name in self._datasets
-
-
-# Global dataset registry
-dataset_registry = DatasetRegistry()
-
-
-def register_dataset(dataset_class: Type[Dataset]) -> Type[Dataset]:
-    """Register a dataset.
-    
-    Args:
-        dataset_class: The dataset class to register
-        
-    Returns:
-        The registered dataset class
-    """
-    return dataset_registry.register(dataset_class)

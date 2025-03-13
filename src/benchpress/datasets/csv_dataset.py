@@ -4,11 +4,10 @@ import csv
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
-from ..tasks.base import Example
-from .base import Dataset, register_dataset
+from .base import Dataset
 
 # Type variable for dataset example type
-T = TypeVar("T", bound=Example)
+T = TypeVar("T")
 
 
 class CsvDataset(Dataset[T]):

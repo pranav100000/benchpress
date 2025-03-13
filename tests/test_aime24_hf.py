@@ -5,7 +5,8 @@ import os
 import asyncio
 from datasets import load_dataset
 
-from benchpress.datasets.v2.aime24_hf_dataset import Aime24HfDataset
+from benchpress.datasets.aime24_hf_dataset import Aime24HfDataset
+from benchpress.examples.aime24 import Aime24Example
 from benchpress.tasks.aime24 import Aime24Task
 
 

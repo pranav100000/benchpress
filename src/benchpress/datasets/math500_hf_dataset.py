@@ -2,7 +2,7 @@
 
 from typing import Dict, Any, Optional
 
-from ...tasks.math500_example import Math500Example
+from ..examples.math500 import Math500Example
 from .huggingface_dataset import HuggingFaceDataset
 
 

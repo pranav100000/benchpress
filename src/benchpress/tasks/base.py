@@ -4,20 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-
-@dataclass
-class Example:
-    """A single example from a benchmark dataset."""
-
-    id: str
-    question: str
-    answer: str
-    metadata: Optional[Dict[str, Any]] = None
-
-    def __post_init__(self) -> None:
-        """Initialize the example."""
-        if self.metadata is None:
-            self.metadata = {}
+from ..examples.base import Example
 
 
 @dataclass

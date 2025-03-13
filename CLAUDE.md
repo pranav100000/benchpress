@@ -48,12 +48,12 @@
 ### Architecture
 - **Base Classes**: `Dataset`, `DatasetRegistry` in `datasets/v2/base.py`
 - **Format Adapters**:
-  - `CSVDataset` in `datasets/v2/csv_dataset.py`
-  - `JSONDataset` in `datasets/v2/json_dataset.py`
-  - `HuggingFaceDataset` in `datasets/v2/huggingface_dataset.py`
+  - `CSVDataset` in `datasets/csv_dataset.py`
+  - `JSONDataset` in `datasets/json_dataset.py`
+  - `HuggingFaceDataset` in `datasets/huggingface_dataset.py`
 - **Task-Specific Implementations**:
-  - `GPQADataset` in `datasets/v2/gpqa_dataset.py`
-  - `MATH500HfDataset` in `datasets/v2/math500_hf_dataset.py`
+  - `GPQADataset` in `datasets/gpqa_dataset.py`
+  - `MATH500HfDataset` in `datasets/math500_hf_dataset.py`
 
 ### Usage Patterns
 - **Registry**: Register datasets with `DatasetRegistry.register("name", dataset_class)`
