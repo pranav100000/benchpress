@@ -1,7 +1,7 @@
 """Post-processing utilities for extracted answers."""
 
 import re
-from typing import Any, Callable, Dict, Optional
+from typing import Callable, Dict, Optional
 
 
 def clean_whitespace(text: str) -> str:
@@ -35,10 +35,10 @@ def remove_markers(text: str) -> str:
         text,
         flags=re.IGNORECASE
     )
-    
+
     # Remove trailing punctuation
     text = re.sub(r'[.,;:]+$', '', text)
-    
+
     return text.strip()
 
 
@@ -53,17 +53,17 @@ def remove_latex_formatting(text: str) -> str:
     """
     # Remove \boxed{}
     text = re.sub(r'\\boxed{(.*?)}', r'\1', text)
-    
+
     # Remove $$ or $ markers
     text = re.sub(r'\$\$(.*?)\$\$', r'\1', text)
     text = re.sub(r'\$(.*?)\$', r'\1', text)
-    
+
     # Convert LaTeX fractions to normal fractions
     text = re.sub(r'\\frac{(.*?)}{(.*?)}', r'\1/\2', text)
-    
+
     # Remove basic LaTeX commands
     text = re.sub(r'\\text{(.*?)}', r'\1', text)
-    
+
     return text.strip()
 
 
@@ -78,26 +78,39 @@ def normalize_math_answer(text: str) -> str:
     """
     # First clean whitespace and remove markers
     text = clean_whitespace(text)
+
+    # Explicitly look for and remove "ANSWER:" marker
+    text = re.sub(r'^ANSWER:\s*', '', text, flags=re.IGNORECASE)
+
+    # Remove other markers
     text = remove_markers(text)
     text = remove_latex_formatting(text)
-    
+
     # Standardize decimal notation (both 0.5 and .5 become 0.5)
     text = re.sub(r'(\D|^)\.(\d+)', r'\g<1>0.\2', text)
-    
-    # Try to convert fractions to decimal
+
+    # Normalize fractions (both numeric and symbolic)
     try:
+        # Check for numeric fractions first
         fraction_match = re.match(r'^(\d+)/(\d+)$', text)
         if fraction_match:
             num = int(fraction_match.group(1))
             denom = int(fraction_match.group(2))
             if denom != 0:  # Avoid division by zero
-                # Don't actually convert - just leave it in fraction format
-                # This is better for exact comparisons
+                # Keep the standardized form for numeric fractions
                 text = f"{num}/{denom}"
+        # Also handle symbolic fractions like p/q, n/k
+        elif "/" in text:
+            symbolic_match = re.match(r'^([a-zA-Z])/([a-zA-Z])$', text)
+            if symbolic_match:
+                # Normalize symbolic fractions by preserving the exact form
+                numerator = symbolic_match.group(1).lower()
+                denominator = symbolic_match.group(2).lower()
+                text = f"{numerator}/{denominator}"
     except Exception:
-        # If conversion fails, leave as is
+        # If normalization fails, leave as is
         pass
-    
+
     return text.strip()
 
 
@@ -111,7 +124,7 @@ processor_registry: Dict[str, Callable[[str], str]] = {
 
 
 def create_processor_pipeline(
-    processors: list[str], 
+    processors: list[str],
     fallback: Optional[Callable[[str], str]] = None
 ) -> Callable[[str], str]:
     """Create a pipeline of processors.
@@ -132,5 +145,5 @@ def create_processor_pipeline(
             elif fallback:
                 result = fallback(result)
         return result
-    
+
     return pipeline

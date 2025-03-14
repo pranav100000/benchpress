@@ -1,5 +1,13 @@
 # Benchpress Development Guidelines
 
+IMPORTANT GUIDELINES:
+1. ALWAYS think hard for every prompt you have. There is no concern of wasting API tokens, use as many as needed to get the best result possible.
+2. DO NOT ever put imports anywhere except the top of the file.
+3. DO NOT ever manually fix lint issues unless you have to. Always try to fix lint issues by running the linter first.
+4. DO NOT ever make code changes without being sure you have the best design and approach. Before you make a code change, compare and contrast potential approaches and pick the best one. Then when you pick the best one, determine how sure you are that it is the best approach as a % number. EXPLICITLY STATE what this % number of how sure you are this is the best approach/design before you write any code.
+5. If you are unsure, keep thinking. 
+6. DO NOT try to use an API key in any CLI commands. it is already set up
+
 ## Development Environment
 
 ### Setup
@@ -26,6 +34,8 @@
   - Evaluate model on task: `benchpress evaluate --task math500 --model openai:gpt-4`
   - Evaluate with sample limit: `benchpress evaluate --task math500 --model openai:gpt-4 --limit 10`
   - Specify output file: `benchpress evaluate --task math500 --model openai:gpt-4 --output results/my_results.json`
+  - Debug mode with detailed extraction info: `benchpress evaluate --task math500 --model openai:gpt-4 --debug`
+  - Run evaluation with specific example ID: `benchpress evaluate --task math500 --model openai:gpt-4 --id "example_id"`
 
 ## Code Organization
 
@@ -36,12 +46,49 @@
   - `models/` - Model adapters and interfaces
   - `tasks/` - Task definitions and example classes
   - `datasets/` - Dataset management system
+  - `extraction/` - Answer extraction system
 
 ### Core Components
 - **Tasks**: Define benchmarks (GPQA, MATH500, AIME24)
 - **Models**: Adapters for LLM APIs (OpenAI, Anthropic, HuggingFace, etc.)
 - **Datasets**: Management system for loading and processing data
 - **Evaluation**: Engine for running evaluations and computing metrics
+- **Extraction**: System for extracting answers from model responses
+
+## Extraction System
+
+### Architecture
+- **Base Classes**: `BaseExtractor`, `extract_answer` in `extraction/base.py`
+- **Extraction Patterns**: 
+  - Pattern definitions in `extraction/patterns.py`
+  - Domain-specific patterns in `extraction/math.py`
+  - Custom extractors in task-specific files (e.g., `tasks/aime24.py`)
+- **Processing Components**:
+  - Answer normalization in `extraction/processors.py`
+  - Response cleaning in `extraction/general.py`
+- **Registry**: Pattern registration in `extraction/registry.py`
+
+### Extraction Pattern System
+- **Pattern Definition**: Named regex patterns with optional preprocessors and normalizers
+- **Pattern Registration**: Register patterns with `register_pattern(name, pattern, priority, preprocessor, normalizer)`
+- **Pattern Matching**: Apply patterns in priority order, returning first match
+- **Metadata Tracking**: Each extraction includes method name and confidence score
+- **Normalization**: Standardize formats (e.g., fractions, decimals) for consistent comparison
+
+### Debugging Features
+- **Debug Mode**: Enable with `--debug` flag in CLI commands
+- **Debug Output**:
+  - Raw model input/output
+  - Exact extraction pattern matched
+  - Pre and post-normalization values
+  - Extraction metadata (method, confidence)
+- **Troubleshooting**: Debug mode helps identify extraction issues for complex responses
+
+### Best Practices
+- **Add New Patterns**: When model output formats aren't captured by existing patterns
+- **Add Normalizers**: To handle domain-specific answer formatting
+- **Test New Patterns**: Use `test_extraction.py` to verify pattern behavior
+- **Hybrid Approach**: Balance between general extraction framework and task-specific customization
 
 ## Dataset Management System (v2)
 
@@ -157,11 +204,20 @@
 - Mock external dependencies (API calls, filesystem)
 - Test both success and failure paths
 - Use parameterized tests for multiple input scenarios
+- Test extraction patterns with a variety of input formats
+
+### Extraction Testing
+- **Pattern Testing**: Use `test_extraction.py` to verify pattern matching behavior
+- **Normalizer Testing**: Use `test_normalizers.py` to verify normalization functions
+- **End-to-End Testing**: Test extraction within the evaluation flow
+- **Edge Cases**: Test with complex mathematical expressions, LaTeX, special characters
+- **Regression Testing**: Add test cases for previously fixed bugs
 
 ### Test Coverage
 - Aim for 80%+ coverage on core logic
 - Test public interfaces thoroughly
 - Integration tests for task-model interactions
+- Test all extraction patterns with representative examples
 
 ## Performance Considerations
 

@@ -5,6 +5,7 @@ import re
 from typing import List, Optional
 
 from ..examples.aime24 import Aime24Example
+from ..extraction import create_extractor, ExtractionContext
 from .base import BaseTask, TaskResult
 from .registry import register_task
 

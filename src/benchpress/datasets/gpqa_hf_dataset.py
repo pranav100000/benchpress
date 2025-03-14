@@ -9,66 +9,80 @@ from .huggingface_dataset import HuggingFaceDataset
 def gpqa_hf_mapper(item: Dict[str, Any]) -> Dict[str, Any]:
     """Map a GPQA HF dataset item to GpqaExample parameters.
     
+    Maps fields from the Idavidrein/gpqa dataset (gpqa_diamond configuration)
+    to our internal GpqaExample format.
+    
     Args:
         item: An item from the GPQA HF dataset
         
     Returns:
         Dictionary of parameters for GpqaExample constructor
     """
-    # Extract fields from the HF dataset
-    question = item.get("question", "")
-    answer = item.get("reference_answer", "")  # GPQA uses 'reference_answer'
-    subject = item.get("subject", "")
+    # Extract fields from the HF dataset (using Idavidrein/gpqa schema)
+    question = item.get("Question", "")
+    answer = item.get("Correct Answer", "")
     
-    # Additional fields specific to GPQA
-    primary_category = item.get("primary_category", "")
-    secondary_category = item.get("secondary_category", "")
+    # Get domain and difficulty
+    subject = item.get("High-level domain", "")
+    difficulty = item.get("Writer's Difficulty Estimate", "graduate")
     
-    # GPQA doesn't have explicit difficulty, use graduate level as default
-    difficulty = "graduate"
+    # Get subdomain and record ID
+    subdomain = item.get("Subdomain", "")
+    record_id = item.get("Record ID", "")
     
-    # Example ID from HF dataset
-    example_id = item.get("id", "")
-    if not example_id:
-        # Fallback if no ID is provided
-        example_id = f"gpqa_{hash(question)}"
+    # Get incorrect answers for metadata
+    incorrect_answers = [
+        item.get("Incorrect Answer 1", ""),
+        item.get("Incorrect Answer 2", ""),
+        item.get("Incorrect Answer 3", "")
+    ]
+    
+    # Get explanation
+    explanation = item.get("Explanation", "")
+    
+    # Generate ID using record_id if available, otherwise use hash of question
+    if record_id:
+        example_id = f"gpqa_diamond_{record_id}"
+    else:
+        example_id = f"gpqa_diamond_{hash(question)}"
     
     return {
-        "id": f"gpqa_hf_{example_id}",
+        "id": example_id,
         "question": question,
         "answer": answer,
         "subject": subject,
         "difficulty": difficulty,
         "metadata": {
-            "primary_category": primary_category,
-            "secondary_category": secondary_category,
-            "source": "huggingface/gpqa",
-            "hf_id": example_id,
+            "subdomain": subdomain,
+            "incorrect_answers": incorrect_answers,
+            "explanation": explanation,
+            "record_id": record_id,
+            "source": "huggingface/gpqa_diamond",
         }
     }
 
 
 class GpqaHfDataset(HuggingFaceDataset[GpqaExample]):
-    """GPQA HuggingFace dataset implementation."""
+    """GPQA Diamond HuggingFace dataset implementation."""
     
     def __init__(
         self, 
         version: str = "default", 
         data_path: Optional[str] = None,
-        dataset_name: str = "openai/gpqa",  # Support different variants
-        config_name: Optional[str] = None,  # For diamond or other configs
-        split: str = "test",  # GPQA only has a 'test' split
-        use_auth_token: Optional[bool] = None,
+        dataset_name: str = "Idavidrein/gpqa",  # The correct HF dataset name
+        config_name: str = "gpqa_diamond",      # The specific GPQA configuration
+        split: str = "train",                   # GPQA Diamond uses 'train' split
+        token: Optional[str] = None,            # HF API token for gated dataset access
     ):
-        """Initialize the GPQA HuggingFace dataset.
+        """Initialize the GPQA Diamond HuggingFace dataset.
         
         Args:
             version: Dataset version (default is 'default')
             data_path: Override path to cache the dataset
-            dataset_name: HF dataset name to use (default is 'openai/gpqa')
-            config_name: Dataset configuration if applicable (e.g., 'diamond')
-            split: Dataset split to use (default is 'test')
-            use_auth_token: Whether to use the HF auth token for access
+            dataset_name: HF dataset name (default is 'Idavidrein/gpqa')
+            config_name: Dataset configuration (default is 'gpqa_diamond')
+            split: Dataset split to use (default is 'train')
+            token: HF API token for accessing gated datasets
         """
         super().__init__(
             name="gpqa_hf",
@@ -79,5 +93,6 @@ class GpqaHfDataset(HuggingFaceDataset[GpqaExample]):
             split=split,
             version=version,
             data_path=data_path,
-            use_auth_token=use_auth_token
+            token=token,  # Use the token parameter for authentication
+            use_auth_token=None  # Not needed with token parameter
         )

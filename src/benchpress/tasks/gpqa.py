@@ -1,10 +1,11 @@
 """GPQA Diamond benchmark task."""
 
 import re
-from typing import List, Optional, Union, Literal
+from typing import List, Optional, Union, Literal, Dict, Any
 
 from ..datasets.gpqa_dataset import GpqaDataset
 from ..datasets.gpqa_hf_dataset import GpqaHfDataset
+from ..utils import get_hf_token
 from ..examples.gpqa import GpqaExample
 from ..extraction import create_extractor
 from ..extraction.base import ExtractedAnswer, ExtractionContext
@@ -20,8 +21,10 @@ class GpqaTask(BaseTask[GpqaExample]):
         self, 
         data_path: Optional[str] = None,
         dataset_source: Literal["csv", "huggingface"] = "csv",
-        hf_dataset_name: str = "openai/gpqa",
-        hf_config_name: Optional[str] = None,
+        hf_dataset_name: str = "Idavidrein/gpqa",
+        hf_config_name: str = "gpqa_diamond",
+        hf_split: str = "train",
+        hf_token: Optional[str] = None,
     ):
         """Initialize the GPQA Diamond task.
 
@@ -30,11 +33,15 @@ class GpqaTask(BaseTask[GpqaExample]):
             dataset_source: Source of the dataset ("csv" or "huggingface")
             hf_dataset_name: Hugging Face dataset name (if using huggingface)
             hf_config_name: Hugging Face dataset config (if using huggingface)
+            hf_split: Hugging Face dataset split to use
+            hf_token: Hugging Face API token (if None, will try to get from env)
         """
         self._data_path = data_path
         self._dataset_source = dataset_source
         self._hf_dataset_name = hf_dataset_name
         self._hf_config_name = hf_config_name
+        self._hf_split = hf_split
+        self._hf_token = hf_token
         
         # Initialize the extractor with GPQA domain
         self._extractor = create_extractor("gpqa")
@@ -57,10 +64,15 @@ class GpqaTask(BaseTask[GpqaExample]):
         """
         # Use the appropriate dataset implementation based on the source
         if self._dataset_source == "huggingface":
+            # Get token from environment if not provided
+            token = self._hf_token or get_hf_token()
+            
             dataset = GpqaHfDataset(
                 data_path=self._data_path,
                 dataset_name=self._hf_dataset_name,
                 config_name=self._hf_config_name,
+                split=self._hf_split,
+                token=token,
             )
         else:
             # Default to CSV dataset

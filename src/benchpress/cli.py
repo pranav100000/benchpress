@@ -2,7 +2,7 @@
 
 import asyncio
 import sys
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import typer
 from rich.console import Console
@@ -10,6 +10,7 @@ from rich.table import Table
 
 from benchpress.evaluation import EvaluationEngine
 from benchpress.models import GlhfModel, OpenAICompatibleModel
+from benchpress.models.base import BaseModel
 from benchpress.tasks import task_registry
 
 app = typer.Typer(
@@ -62,6 +63,14 @@ def evaluate(
     system_prompt: Optional[str] = typer.Option(  # noqa: B008
         None, "--system-prompt", "-s", help="System prompt to use for the model"
     ),
+    silent: bool = typer.Option(  # noqa: B008
+        False, "--silent", "--quiet", "-q",
+        help="Suppress real-time output of model answers and evaluations"
+    ),
+    debug: bool = typer.Option(  # noqa: B008
+        False, "--debug", "-d",
+        help="Show detailed debug information for troubleshooting extraction issues"
+    ),
 ) -> None:
     """Evaluate a model on one or more benchmark tasks."""
     # Validate tasks
@@ -84,7 +93,9 @@ def evaluate(
     provider, model_name = model.split(":", 1)
 
     # Initialize model
+    model_instance: BaseModel
     try:
+        # Create the right model type based on provider
         if provider == "openai" or provider == "compatible":
             model_instance = OpenAICompatibleModel(
                 model_name=model_name,
@@ -111,6 +122,9 @@ def evaluate(
     engine = EvaluationEngine(
         model=model_instance,
         output_dir=output_dir,
+        silent=silent,
+        debug=debug,
+        console=console,
     )
 
     # Prepare results table

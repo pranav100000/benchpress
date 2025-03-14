@@ -1,10 +1,9 @@
 """Common patterns for answer extraction."""
 
 import re
-from typing import Dict, List, Set
+from typing import List
 
 from .base import ExtractionPattern, PatternType
-
 
 # Pattern priority ranges (higher = tried first)
 EXPLICIT_PRIORITY_RANGE = (900, 1000)  # Explicit markers
@@ -21,13 +20,20 @@ def get_common_patterns() -> List[ExtractionPattern]:
         A list of common extraction patterns
     """
     patterns = []
-    
+
     # Explicit patterns
     patterns.extend([
         ExtractionPattern(
             name="final_answer_marker",
             pattern=r"(?:FINAL\s+ANSWER|final\s+answer|Final\s+Answer)[:=]\s*(.*?)(?:\n|$)",
             priority=1000,
+            base_confidence=0.9,
+            pattern_type=PatternType.EXPLICIT,
+        ),
+        ExtractionPattern(
+            name="explicit_answer_marker",
+            pattern=r"ANSWER:\s*([^\n]+)(?:\n|$)",
+            priority=995,
             base_confidence=0.9,
             pattern_type=PatternType.EXPLICIT,
         ),
@@ -46,7 +52,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             pattern_type=PatternType.EXPLICIT,
         ),
     ])
-    
+
     # Structural patterns
     patterns.extend([
         ExtractionPattern(
@@ -65,7 +71,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             pattern_type=PatternType.STRUCTURAL,
         ),
     ])
-    
+
     # Domain-specific patterns - Math
     patterns.extend([
         ExtractionPattern(
@@ -85,7 +91,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             applies_to={"math", "math500", "aime24"},
         ),
     ])
-    
+
     # Domain-specific patterns - GPQA
     patterns.extend([
         # Multiple choice answer extraction for GPQA
@@ -105,7 +111,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             pattern_type=PatternType.DOMAIN,
             applies_to={"gpqa"},
         ),
-        
+
         # Value with units common in scientific questions
         ExtractionPattern(
             name="gpqa_value_with_units",
@@ -115,7 +121,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             pattern_type=PatternType.DOMAIN,
             applies_to={"gpqa"},
         ),
-        
+
         # Chemical formulas or equations
         ExtractionPattern(
             name="gpqa_chemical_formula",
@@ -125,7 +131,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             pattern_type=PatternType.DOMAIN,
             applies_to={"gpqa"},
         ),
-        
+
         # Scientific reasoning pattern
         ExtractionPattern(
             name="gpqa_scientific_conclusion",
@@ -136,7 +142,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             applies_to={"gpqa"},
         ),
     ])
-    
+
     # Positional patterns
     patterns.extend([
         ExtractionPattern(
@@ -154,7 +160,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             pattern_type=PatternType.POSITIONAL,
         ),
     ])
-    
+
     # Fallback patterns
     patterns.extend([
         ExtractionPattern(
@@ -166,7 +172,7 @@ def get_common_patterns() -> List[ExtractionPattern]:
             applies_to={"math", "math500", "aime24", "number", "*"},
         ),
     ])
-    
+
     return patterns
 
 
@@ -180,6 +186,6 @@ def create_domain_pattern_set(domain: str) -> List[ExtractionPattern]:
         A list of domain-specific extraction patterns
     """
     common_patterns = get_common_patterns()
-    
+
     # Filter patterns that apply to this domain
     return [p for p in common_patterns if p.matches(domain)]

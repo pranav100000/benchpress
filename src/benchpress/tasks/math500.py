@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from ..datasets.math500_hf_dataset import Math500HfDataset
 from ..examples.math500 import Math500Example
-from ..extraction import create_extractor, ExtractionContext
+from ..extraction import ExtractionContext, create_extractor
 from .base import BaseTask, TaskResult
 from .registry import register_task
 
@@ -45,9 +45,13 @@ Problem:
 Solve this problem step by step, showing your work clearly. Make sure to simplify your answer to its simplest form.
 
 After solving the problem, please clearly indicate your final answer using the format:
-\boxed{your_answer_here}
+ANSWER: [your final answer]
 
-Remember to derive the answer from first principles and verify your work."""
+IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
+- No units (don't write "dollars", "meters", etc.)
+- No explanations
+- No additional text
+- Just the number or expression itself"""
 
     def _normalize_math_answer(self, answer: str) -> str:
         """Normalize a math answer for more robust comparison.
@@ -60,6 +64,13 @@ Remember to derive the answer from first principles and verify your work."""
         """
         if not answer:
             return ""
+
+        # Remove "ANSWER:" marker
+        answer = re.sub(
+            r'^ANSWER:\s*',
+            '',
+            answer
+        )
 
         # Replace LaTeX fractions with division notation
         answer = re.sub(r"\\frac{([^}]+)}{([^}]+)}", r"\1/\2", answer)
@@ -77,17 +88,26 @@ Remember to derive the answer from first principles and verify your work."""
         # Replace LaTeX special symbols
         answer = answer.replace("pi", "π")
 
-        # Convert fractions to decimals for numerical comparison
+        # Normalize fractions (both numeric and symbolic) - keep consistent with processors.py
         try:
+            # Check for numeric fractions first
             if "/" in answer:
                 parts = answer.split("/")
-                if len(parts) == 2 and all(part.strip().isdigit() for part in parts):
-                    num = int(parts[0].strip())
-                    denom = int(parts[1].strip())
-                    if denom != 0:  # Avoid division by zero
-                        answer = str(num / denom)
+                if len(parts) == 2:
+                    # For numeric fractions, standardize the form but don't convert to decimal
+                    if all(part.strip().isdigit() for part in parts):
+                        num = int(parts[0].strip())
+                        denom = int(parts[1].strip())
+                        if denom != 0:  # Avoid division by zero
+                            answer = f"{num}/{denom}"
+                    # For symbolic fractions like p/q, n/k, standardize to lowercase
+                    elif len(parts[0].strip()) == 1 and len(parts[1].strip()) == 1:
+                        p1 = parts[0].strip()
+                        p2 = parts[1].strip()
+                        if p1.isalpha() and p2.isalpha():
+                            answer = f"{p1.lower()}/{p2.lower()}"
         except Exception:
-            # If conversion fails, keep the original
+            # If normalization fails, keep the original
             pass
 
         return answer.strip().lower()
@@ -146,54 +166,66 @@ Remember to derive the answer from first principles and verify your work."""
                 "difficulty": example.difficulty,
             }
         )
-        
+
         # Create math extractor
         extractor = create_extractor(domain="math500")
-        
+
         # Extract answers
         candidates = extractor.extract(model_output, context)
-        
+
         # Get the best answer (highest confidence)
         extracted_answer = ""
         if candidates:
             extracted_answer = candidates[0].normalized_text or candidates[0].text
-        
+
         # Get the expected answer (normalize it too)
         normalized_expected = self._normalize_math_answer(example.answer)
-        
+
         # For safety, also normalize the extracted answer again
         normalized_extracted = self._normalize_math_answer(extracted_answer)
-        
+
         # Compare normalized answers
         correct = normalized_extracted == normalized_expected
-        
+
         # If the normalized comparison fails, fall back to exact match
         if not correct:
             correct = extracted_answer == example.answer
 
         # Create detailed metadata
-        metadata = {
+        metadata: dict[str, object] = {
             "extracted_answer": extracted_answer,
             "expected_answer": example.answer,
             "category": example.category,
             "difficulty": example.difficulty,
         }
-        
+
         # Add extraction details if available
         if candidates:
-            metadata["extraction_method"] = candidates[0].pattern_name
-            metadata["extraction_confidence"] = candidates[0].confidence
+            # Set both canonical and alternative keys for backward compatibility
+            best_candidate = candidates[0]
+            metadata["extraction_method"] = best_candidate.pattern_name
+            metadata["method"] = best_candidate.pattern_name  # Alternative key
             
+            # Convert confidence to float and store in two formats
+            confidence_float = float(best_candidate.confidence)
+            metadata["extraction_confidence"] = confidence_float
+            metadata["confidence"] = confidence_float  # Alternative key
+            
+            # Store info about how it was extracted
+            metadata["extractor"] = best_candidate.extracted_by or "unknown"
+            metadata["pattern_type"] = best_candidate.metadata.get("pattern_type", "unknown")
+
             # Add alternative candidates info if available
             if len(candidates) > 1:
-                metadata["alternative_answers"] = [
+                alt_answers = [
                     {
                         "text": c.normalized_text or c.text,
                         "method": c.pattern_name,
-                        "confidence": c.confidence
+                        "confidence": float(c.confidence)
                     }
                     for c in candidates[1:3]  # Just include top alternatives
                 ]
+                metadata["alternative_answers"] = alt_answers
 
         return TaskResult(
             example_id=example.id,

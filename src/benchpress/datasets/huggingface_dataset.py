@@ -32,6 +32,7 @@ class HuggingFaceDataset(Dataset[T]):
         version: str = "default",
         data_path: Optional[str] = None,
         use_auth_token: Optional[Union[bool, str]] = None,
+        token: Optional[str] = None,  # New parameter for newer HF libraries
         max_workers: int = 4,
         chunk_size: int = 100,
     ):
@@ -59,6 +60,7 @@ class HuggingFaceDataset(Dataset[T]):
         self.revision = revision
         self.mapper = mapper
         self.use_auth_token = use_auth_token
+        self.token = token
         self.max_workers = max_workers
         self.chunk_size = chunk_size
         self._hf_dataset = None
@@ -88,7 +90,9 @@ class HuggingFaceDataset(Dataset[T]):
                             split=self.split,
                             revision=self.revision,
                             cache_dir=str(self._data_path) if self._data_path else None,
-                            use_auth_token=self.use_auth_token,
+                            # Use token parameter if provided, otherwise fall back to use_auth_token
+                            **({"token": self.token} if self.token else 
+                               {"use_auth_token": self.use_auth_token} if self.use_auth_token else {}),
                         )
                     )
                 logger.info(f"Successfully loaded dataset with {len(self._hf_dataset)} examples")

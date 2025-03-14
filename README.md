@@ -16,6 +16,12 @@ Benchpress is a modern Python framework for evaluating Large Language Models (LL
   - OpenAI API (GPT models)
   - GLHF.chat (access to Hugging Face models)
   - Any OpenAI-compatible API endpoints
+- Sophisticated answer extraction system:
+  - Pattern-based extraction for multiple answer formats
+  - Domain-specific extractors for mathematical expressions
+  - Answer normalization for consistent comparison
+  - Extraction metadata tracking (method, confidence)
+- Debug mode for detailed extraction information
 - Clean, consistent API for benchmark execution and result analysis
 
 ## Installation
@@ -75,6 +81,12 @@ benchpress evaluate --task gpqa --model openai:gpt-4
 
 # Evaluate on multiple benchmarks simultaneously
 benchpress evaluate --task math500 --task aime24 --task gpqa --model openai:gpt-4
+
+# Run with debug mode to see detailed extraction information
+benchpress evaluate --task math500 --model openai:gpt-4 --debug
+
+# Run evaluation for a specific example ID
+benchpress evaluate --task math500 --model openai:gpt-4 --id "example_id"
 
 # Or provide the API key directly
 benchpress evaluate --task aime24 --model openai:gpt-4 --api-key "your-api-key" --limit 1
@@ -148,6 +160,53 @@ class MyNewTask(BaseTask):
     # Implement other required methods
 ```
 
+## Answer Extraction System
+
+Benchpress includes a sophisticated extraction system to parse model outputs and extract standardized answers.
+
+### Key Components
+
+- **Pattern Registry**: Central registry of extraction patterns in `extraction/registry.py`
+- **Pattern Definitions**: Common patterns in `extraction/patterns.py`, math-specific patterns in `extraction/math.py`
+- **Normalizers**: Functions to standardize extracted answers in `extraction/processors.py`
+- **Base Extractor**: Core extraction logic in `extraction/base.py`
+
+### Adding New Extraction Patterns
+
+1. Define a new pattern with a regular expression that captures the answer in a named group
+2. Register the pattern with priority, preprocessor, and normalizer functions
+3. Add the pattern to the registry
+
+Example:
+
+```python
+from benchpress.extraction.registry import register_pattern
+from benchpress.extraction.processors import normalize_decimal
+
+# Define and register a new extraction pattern
+register_pattern(
+    name="custom_answer_format",
+    pattern=r"My answer is: (?P<answer>[\d\.]+)",
+    priority=50,  # Higher priority patterns are tried first
+    preprocessor=None,  # Optional function to preprocess the text
+    normalizer=normalize_decimal  # Optional function to normalize the extracted answer
+)
+```
+
+### Debugging Extraction
+
+Use the `--debug` flag to see detailed information about the extraction process:
+
+```bash
+benchpress evaluate --task math500 --model openai:gpt-4 --debug --limit 1
+```
+
+The debug output includes:
+- Raw model input and output
+- Extraction pattern matched
+- Pre and post-normalization values
+- Extraction metadata (method, confidence)
+
 ## Development
 
 Benchpress uses several tools to ensure code quality:
@@ -161,16 +220,42 @@ Run the quality checks:
 
 ```bash
 # Format code
-black src/
+black src/ tests/
 
 # Lint code
-ruff check src/
+ruff check src/ tests/
 
 # Type check
 mypy src/
 
-# Run tests
+# Run all tests
 pytest
+
+# Run specific test files
+pytest tests/test_extraction.py
+pytest tests/test_math500.py
+
+# Run test with verbose output
+pytest tests/test_extraction.py -v
+```
+
+### Testing Extraction Patterns
+
+When adding new extraction patterns, write tests to verify their behavior:
+
+```python
+# Example test for a new extraction pattern
+def test_custom_extraction_pattern():
+    from benchpress.extraction.base import extract_answer
+    
+    # Test with a sample response
+    response = "My analysis is complete. My answer is: 42.5"
+    result = extract_answer(response)
+    
+    assert result is not None
+    assert result.value == "42.5"
+    assert result.normalized == "42.5"
+    assert result.metadata["method"] == "custom_answer_format"
 ```
 
 ## License
