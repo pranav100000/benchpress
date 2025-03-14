@@ -9,7 +9,6 @@ from rich.console import Console
 
 from ..models.base import BaseModel
 from ..tasks.base import BaseTask
-# from ..utils.latex import format_latex_for_terminal
 from ..utils.latex_to_unicode import latex_to_unicode
 
 
@@ -97,15 +96,28 @@ class EvaluationEngine:
 
         # Create progress bar if not in silent mode and console is available
         if not self.silent and self.console:
+            # Add a live accuracy column to the progress bar with raw count
+            accuracy_column = TextColumn(
+                "[bold green]Accuracy: {task.fields[accuracy]:.1%} ({task.fields[correct]}/{task.completed})[/bold green]"
+            )
+            
             progress = Progress(
                 TextColumn("[progress.description]{task.description}"),
                 BarColumn(),
                 TaskProgressColumn(),
+                accuracy_column,
                 console=self.console
             )
-            task_id = progress.add_task(f"Evaluating {task.name}", total=len(examples))
+            # Initialize with 0% accuracy
+            task_id = progress.add_task(
+                f"Evaluating {task.name}", 
+                total=len(examples),
+                accuracy=0.0,
+                correct=0
+            )
 
             with progress:
+                correct_count = 0
                 for i, example in enumerate(examples):
                     # Show the question
                     self.console.print(f"\n[bold cyan]Example {i+1}/{len(examples)}")
@@ -301,9 +313,21 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
 
                     # Add to results
                     results.append(result)
-
-                    # Update progress
-                    progress.update(task_id, advance=1)
+                    
+                    # Update correct count if the answer is correct
+                    if result.correct:
+                        correct_count += 1
+                    
+                    # Calculate current accuracy
+                    current_accuracy = correct_count / (i + 1)
+                    
+                    # Update progress with new accuracy
+                    progress.update(
+                        task_id, 
+                        advance=1, 
+                        accuracy=current_accuracy,
+                        correct=correct_count
+                    )
         else:
             # Silent mode: just process everything without output
             for example in examples:
