@@ -146,7 +146,7 @@ class EvaluationEngine:
                             formatted_question,
                             title=f"Question {i+1}/{len(examples)}",
                             border_style="blue",
-                            width=88
+                            width=120
                         )
                     )
 
@@ -183,7 +183,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                             "",
                             title="Model Response (Streaming...)",
                             border_style="yellow",
-                            width=88,
+                            width=120,
                             height=None  # Allow panel to grow as needed
                         )
                         
@@ -227,7 +227,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                 formatted_output,
                                 title="Model Response",
                                 border_style="yellow",
-                                width=88
+                                width=120
                             )
                         )
 
@@ -269,7 +269,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                             Group(*result_items),
                             title="Evaluation Results",
                             border_style="green" if result.correct else "red",
-                            width=88
+                            width=120
                         )
                     )
 
@@ -297,7 +297,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                 Group(*reference_texts),
                                 title="Reference Answer",
                                 border_style="green",
-                                width=88
+                                width=120
                             )
                         )
 
@@ -330,7 +330,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                     Group(*debug_items),
                                     title="Debug Information",
                                     border_style="red",
-                                    width=88
+                                    width=120
                                 )
                             )
 
@@ -345,7 +345,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                     example.question,
                                     title="Raw Question",
                                     border_style="blue",
-                                    width=88
+                                    width=120
                                 )
                             )
                             
@@ -355,7 +355,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                     model_output,
                                     title="Raw Model Response",
                                     border_style="yellow",
-                                    width=88
+                                    width=120
                                 )
                             )
                             
@@ -398,7 +398,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                     "\n".join(extraction_details),
                                     title="Extraction Details",
                                     border_style="green",
-                                    width=88
+                                    width=120
                                 )
                             )
 

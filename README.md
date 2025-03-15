@@ -5,6 +5,7 @@ Benchpress is a modern Python framework for evaluating Large Language Models (LL
 ## Features
 
 - Run standardized benchmarks against any LLM with an OpenAI-compatible API
+- Real-time streaming of model responses during evaluation
 - Strongly typed codebase with full type annotations
 - Extendable architecture for adding new benchmarks and model providers
 - Command-line interface for easy usage
@@ -21,6 +22,7 @@ Benchpress is a modern Python framework for evaluating Large Language Models (LL
   - Domain-specific extractors for mathematical expressions
   - Answer normalization for consistent comparison
   - Extraction metadata tracking (method, confidence)
+- Real-time evaluation statistics with progress tracking
 - Debug mode for detailed extraction information
 - Clean, consistent API for benchmark execution and result analysis
 
@@ -85,6 +87,9 @@ benchpress evaluate --task math500 --task aime24 --task gpqa --model openai:gpt-
 # Run with debug mode to see detailed extraction information
 benchpress evaluate --task math500 --model openai:gpt-4 --debug
 
+# Enable streaming to see model responses in real-time
+benchpress evaluate --task math500 --model openai:gpt-4 --stream
+
 # Run evaluation for a specific example ID
 benchpress evaluate --task math500 --model openai:gpt-4 --id "example_id"
 
@@ -105,8 +110,8 @@ benchpress evaluate --task aime24 --model compatible:llama-3-70b-instruct --api-
 benchpress evaluate --task math500 --model glhf:mistralai/Mistral-7B-Instruct-v0.3 --api-key "your-glhf-api-key"
 benchpress evaluate --task aime24 --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --system-prompt "You are a math tutor specializing in competition math."
 
-# Run multiple benchmarks against a GLHF model
-benchpress evaluate --task math500 --task aime24 --task gpqa --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --limit 5
+# Run multiple benchmarks against a GLHF model with streaming enabled
+benchpress evaluate --task math500 --task aime24 --task gpqa --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --limit 5 --stream
 
 # Save results to a specific directory
 benchpress evaluate --task math500 --task gpqa --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --output-dir ./my_results
@@ -192,6 +197,34 @@ register_pattern(
     normalizer=normalize_decimal  # Optional function to normalize the extracted answer
 )
 ```
+
+### Real-time Response Streaming
+
+Benchpress supports streaming model responses in real-time as they're generated. This provides several benefits:
+
+- See model reasoning as it happens
+- Get immediate feedback on model performance
+- Avoid timeouts with larger models that take longer to generate full responses
+- Better user experience during longer evaluation runs
+
+Enable streaming with the `--stream` flag:
+
+```bash
+# Stream responses from an OpenAI model
+benchpress evaluate --task math500 --model openai:gpt-4 --stream
+
+# Stream responses from a GLHF model
+benchpress evaluate --task gpqa --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --stream 
+
+# Combine streaming with other options
+benchpress evaluate --task math500 --model openai:gpt-4 --stream --limit 5 --output-dir ./results
+```
+
+During streaming, you'll see:
+- A progress bar with real-time accuracy statistics
+- The model's response appear token-by-token as it's generated
+- LaTeX expressions properly formatted in the terminal
+- The panel title changes from "Streaming..." to "Complete" when done
 
 ### Debugging Extraction
 
