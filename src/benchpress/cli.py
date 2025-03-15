@@ -71,6 +71,10 @@ def evaluate(
         False, "--debug", "-d",
         help="Show detailed debug information for troubleshooting extraction issues"
     ),
+    streaming: bool = typer.Option(  # noqa: B008
+        False, "--stream", "--streaming",
+        help="Stream model responses in real-time as they're generated"
+    ),
 ) -> None:
     """Evaluate a model on one or more benchmark tasks."""
     # Validate tasks
@@ -125,6 +129,7 @@ def evaluate(
         silent=silent,
         debug=debug,
         console=console,
+        streaming=streaming,
     )
 
     # Prepare results table
