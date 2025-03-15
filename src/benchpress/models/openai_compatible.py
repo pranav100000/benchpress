@@ -51,6 +51,36 @@ class OpenAICompatibleModel(BaseModel):
     def model_id(self) -> str:
         """Return the model identifier."""
         return self._model_name
+        
+    def sanitize_params(
+        self,
+        base_params: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Sanitize parameters by removing None values and handling o1-specific requirements.
+        
+        Extends the base implementation to handle o1's API requirements.
+        o1 doesn't support the 'temperature' parameter.
+
+        Args:
+            base_params: Base parameters for the API call
+            **kwargs: Additional parameters
+
+        Returns:
+            Dictionary with appropriate parameters for the specific provider
+        """
+        # Get sanitized parameters from parent method
+        params = super().sanitize_params(base_params, **kwargs)
+        
+        # Check if we're using o1
+        is_o1_model = "o1" in self._model_name
+        
+        if is_o1_model:
+            # o1 doesn't support temperature parameter
+            if "temperature" in params:
+                del params["temperature"]
+            
+        return params
 
     async def generate(
         self,
@@ -85,14 +115,19 @@ class OpenAICompatibleModel(BaseModel):
         }
         messages.append(user_message)
 
-        response = await self._client.chat.completions.create(
-            model=self._model_name,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stop=stop_sequences,
+        # Prepare parameters, removing any None values
+        params = self.sanitize_params(
+            {
+                "model": self._model_name,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stop": stop_sequences,
+            },
             **kwargs,
         )
+
+        response = await self._client.chat.completions.create(**params)
 
         self._last_response = response
         message = cast(ChatCompletionMessage, response.choices[0].message)
@@ -137,16 +172,21 @@ class OpenAICompatibleModel(BaseModel):
         prompt_tokens = len(prompt) // 4  # Very rough estimate
         self._streamed_total_tokens = prompt_tokens
         
-        # Use streaming API
-        stream = await self._client.chat.completions.create(
-            model=self._model_name,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stop=stop_sequences,
-            stream=True,
+        # Prepare parameters, removing any None values
+        params = self.sanitize_params(
+            {
+                "model": self._model_name,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stop": stop_sequences,
+                "stream": True,
+            },
             **kwargs,
         )
+        
+        # Use streaming API
+        stream = await self._client.chat.completions.create(**params)
 
         full_text = ""
         async for chunk in stream:

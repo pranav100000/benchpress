@@ -63,6 +63,9 @@ def evaluate(
     system_prompt: Optional[str] = typer.Option(  # noqa: B008
         None, "--system-prompt", "-s", help="System prompt to use for the model"
     ),
+    max_tokens: Optional[int] = typer.Option(  # noqa: B008
+        None, "--max-tokens", help="Maximum number of tokens to generate in model responses"
+    ),
     silent: bool = typer.Option(  # noqa: B008
         False, "--silent", "--quiet", "-q",
         help="Suppress real-time output of model answers and evaluations"
@@ -130,6 +133,7 @@ def evaluate(
         debug=debug,
         console=console,
         streaming=streaming,
+        max_tokens=max_tokens,
     )
 
     # Prepare results table

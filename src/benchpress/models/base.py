@@ -13,6 +13,28 @@ class BaseModel(ABC):
     def model_id(self) -> str:
         """Return the model identifier."""
         pass
+        
+    def sanitize_params(
+        self,
+        base_params: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Sanitize parameters by removing None values.
+        
+        This helps prevent errors with APIs that don't handle None values properly.
+
+        Args:
+            base_params: Base parameters for the API call
+            **kwargs: Additional parameters
+
+        Returns:
+            Dictionary with all parameters, excluding those with None values
+        """
+        # Combine base parameters with additional kwargs
+        all_params = {**base_params, **kwargs}
+        
+        # Filter out None values
+        return {k: v for k, v in all_params.items() if v is not None}
 
     @abstractmethod
     async def generate(
