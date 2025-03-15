@@ -171,21 +171,31 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         # Initialize empty output
                         model_output = ""
                         
-                        # Show a streaming header
-                        self.console.print("\n[bold yellow]Streaming Response:[/bold yellow]")
+                        from rich.live import Live
+                        from rich.panel import Panel
                         
-                        # Use a simple approach - print tokens directly as they arrive
-                        # This avoids nested live displays and prevents repetition
-                        self.console.print("")  # Add some spacing
+                        # Initialize streaming content
+                        streaming_content = ""
                         
-                        # Stream the tokens - just print each new chunk as it arrives
-                        async for chunk in self.model.stream_generate(prompt):
-                            model_output += chunk
-                            # Print just the new chunk, not the entire accumulated output
-                            print(chunk, end="", flush=True)
+                        # Create a panel that we'll update with streaming content
+                        streaming_panel = Panel(
+                            "",
+                            title="Model Response (Streaming...)",
+                            border_style="yellow",
+                            width=88
+                        )
                         
-                        # Add newlines after streaming completes
-                        print("\n\n")
+                        # Use a Live display for updating the panel
+                        # Set refresh_per_second higher for more responsive updates
+                        with Live(streaming_panel, console=self.console, refresh_per_second=10, transient=False) as live:
+                            async for chunk in self.model.stream_generate(prompt):
+                                model_output += chunk
+                                streaming_content += chunk
+                                
+                                # Update the panel content
+                                streaming_panel.renderable = streaming_content
+                                # Force a refresh to update the display
+                                live.refresh()
                         
                         # After streaming completes, show the nicely formatted version
                         formatted_output = latex_to_unicode(model_output)
