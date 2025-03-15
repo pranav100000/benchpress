@@ -176,31 +176,38 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         
                         # Initialize streaming content
                         streaming_content = ""
+                        model_output = ""
                         
                         # Create a panel that we'll update with streaming content
                         streaming_panel = Panel(
                             "",
                             title="Model Response (Streaming...)",
                             border_style="yellow",
-                            width=88
+                            width=88,
+                            height=None  # Allow panel to grow as needed
                         )
                         
                         # Use a Live display for updating the panel
                         # Set refresh_per_second higher for more responsive updates
-                        with Live(streaming_panel, console=self.console, refresh_per_second=10, transient=False) as live:
+                        # Set auto_refresh=False to ensure we control when to refresh
+                        # Set vertical_overflow="visible" to allow content to be scrollable
+                        with Live(streaming_panel, console=self.console, refresh_per_second=10, 
+                                 transient=False, auto_refresh=False, vertical_overflow="visible") as live:
                             async for chunk in self.model.stream_generate(prompt):
                                 model_output += chunk
                                 streaming_content += chunk
                                 
-                                # Update the panel content
-                                streaming_panel.renderable = streaming_content
+                                # Apply LaTeX formatting to the entire accumulated content
+                                formatted_streaming = latex_to_unicode(streaming_content)
+                                
+                                # Update the panel content with formatted text
+                                streaming_panel.renderable = formatted_streaming
                                 # Force a refresh to update the display
                                 live.refresh()
                             
                             # After streaming completes, update the panel title
-                            formatted_output = latex_to_unicode(model_output)
                             streaming_panel.title = "Model Response (Complete)"
-                            streaming_panel.renderable = formatted_output
+                            # No need to reformat as we've been formatting all along
                             live.refresh()
                         
                         # Restart the progress bar

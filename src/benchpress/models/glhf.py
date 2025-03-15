@@ -1,7 +1,7 @@
 """GLHF.chat API model implementation."""
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
@@ -57,6 +57,8 @@ class GlhfModel(BaseModel):
 
         self._client = AsyncOpenAI(api_key=self._api_key, base_url=self._api_base)
         self._last_response: Optional[ChatCompletion] = None
+        self._streamed_completion_tokens: int = 0
+        self._streamed_total_tokens: int = 0
 
     @property
     def model_id(self) -> str:
@@ -117,16 +119,32 @@ class GlhfModel(BaseModel):
                     **kwargs,
                 )
 
+                # Track approximate token counts for metadata
+                prompt_tokens = len(prompt) // 4  # Very rough estimate
+                self._streamed_completion_tokens = 0
+                self._streamed_total_tokens = prompt_tokens
+
                 async for chunk in stream:
                     if chunk.choices and chunk.choices[0].delta.content:
-                        content += chunk.choices[0].delta.content
+                        chunk_content = chunk.choices[0].delta.content
+                        content += chunk_content
+                        # Roughly estimate tokens for metadata
+                        self._streamed_completion_tokens += len(chunk_content) // 4
+                        self._streamed_total_tokens = prompt_tokens + self._streamed_completion_tokens
 
                 # Create a simulated response object to maintain compatibility
                 # with the non-streaming code path
-                # This is simplified and doesn't include all fields
+                # Include all required fields as per the error message
                 self._last_response = ChatCompletion(
                     id="simulated-from-stream",
-                    choices=[{"message": {"content": content}}],
+                    choices=[{
+                        "message": {
+                            "content": content,
+                            "role": "assistant",  # Required field
+                        },
+                        "finish_reason": "stop",  # Required field
+                        "index": 0,               # Required field
+                    }],
                     created=0,
                     model=self._model_name,
                     object="chat.completion",
@@ -158,6 +176,116 @@ class GlhfModel(BaseModel):
                     **kwargs,
                 )
             raise  # Re-raise if not a timeout or if already streaming
+            
+    async def stream_generate(
+        self,
+        prompt: str,
+        temperature: float = 0.0,
+        max_tokens: Optional[int] = None,
+        stop_sequences: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[str, None]:
+        """Stream a response from the model one chunk at a time.
+
+        Args:
+            prompt: The input prompt to send to the model
+            temperature: Sampling temperature (0.0 = deterministic)
+            max_tokens: Maximum number of tokens to generate
+            stop_sequences: Sequences that will stop generation when encountered
+            **kwargs: Additional model-specific parameters
+
+        Yields:
+            Text chunks as they become available
+        """
+        # Create messages list with system and user messages
+        messages: List[ChatCompletionMessageParam] = []
+
+        # Add system message if provided
+        if self._system_prompt:
+            system_message: ChatCompletionSystemMessageParam = {
+                "role": "system",
+                "content": self._system_prompt,
+            }
+            messages.append(system_message)
+
+        # Add user message
+        user_message: ChatCompletionUserMessageParam = {
+            "role": "user",
+            "content": prompt,
+        }
+        messages.append(user_message)
+
+        # Track approximate token counts for metadata
+        prompt_tokens = len(prompt) // 4  # Very rough estimate
+        self._streamed_completion_tokens = 0
+        self._streamed_total_tokens = prompt_tokens
+        
+        # Create a streaming request
+        try:
+            stream = await self._client.chat.completions.create(
+                model=self._model_name,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stop=stop_sequences,
+                stream=True,
+                **kwargs,
+            )
+
+            full_text = ""
+            try:
+                async for chunk in stream:
+                    # Check if delta exists and has content
+                    if (hasattr(chunk, 'choices') and chunk.choices and 
+                        hasattr(chunk.choices[0], 'delta') and 
+                        hasattr(chunk.choices[0].delta, 'content') and
+                        chunk.choices[0].delta.content):
+                        
+                        content = chunk.choices[0].delta.content
+                        full_text += content
+                        # Roughly estimate tokens for metadata
+                        self._streamed_completion_tokens += len(content) // 4
+                        self._streamed_total_tokens = prompt_tokens + self._streamed_completion_tokens
+                        yield content
+            except Exception as streaming_error:
+                # If we had any content before the error, yield what we have so far
+                if full_text:
+                    # Log the error but continue with what we have
+                    print(f"Streaming error occurred but continuing with partial content: {streaming_error}")
+                else:
+                    # If we have no content, raise the error to be caught by the outer try/except
+                    raise streaming_error
+
+            # Create a simulated response object for metadata
+            # Include all required fields as per the error message
+            self._last_response = ChatCompletion(
+                id="simulated-from-stream",
+                choices=[{
+                    "message": {
+                        "content": full_text,
+                        "role": "assistant",  # Required field
+                    },
+                    "finish_reason": "stop",  # Required field
+                    "index": 0,               # Required field
+                }],
+                created=0,
+                model=self._model_name,
+                object="chat.completion",
+            )
+            
+            # If nothing was yielded (empty response), yield an empty string
+            if not full_text:
+                yield ""
+                
+        except Exception as e:
+            # If there's an error during streaming, yield the error message
+            # and then stop streaming
+            error_msg = f"Streaming error: {str(e)}"
+            # Just yield an empty string instead of an error message that would be displayed to the user
+            yield ""
+            # Log the actual error for debugging
+            print(f"GLHF Streaming error: {str(e)}")
+            return
 
     def get_response_metadata(self) -> Dict[str, Any]:
         """Return metadata from the most recent response.
@@ -165,22 +293,36 @@ class GlhfModel(BaseModel):
         Returns:
             A dictionary containing metadata like token usage, model specifics, etc.
         """
+        # If we have a regular (non-streamed) response with usage data
         if (
-            not self._last_response
-            or not hasattr(self._last_response, "usage")
-            or not self._last_response.usage
+            self._last_response
+            and hasattr(self._last_response, "usage")
+            and self._last_response.usage
         ):
             return {
-                "model": self._model_name,
-                "note": "Limited metadata available - possibly from streaming response",
+                "usage": {
+                    "prompt_tokens": self._last_response.usage.prompt_tokens,
+                    "completion_tokens": self._last_response.usage.completion_tokens,
+                    "total_tokens": self._last_response.usage.total_tokens,
+                },
+                "model": self._last_response.model,
+                "id": self._last_response.id,
             }
-
+        
+        # For streamed responses or responses without usage data, provide estimated counts
+        if self._streamed_completion_tokens > 0:
+            return {
+                "usage": {
+                    "prompt_tokens": self._streamed_total_tokens - self._streamed_completion_tokens,
+                    "completion_tokens": self._streamed_completion_tokens,
+                    "total_tokens": self._streamed_total_tokens,
+                },
+                "model": self._model_name,
+                "streamed": True,
+            }
+            
+        # Fallback for other cases
         return {
-            "usage": {
-                "prompt_tokens": self._last_response.usage.prompt_tokens,
-                "completion_tokens": self._last_response.usage.completion_tokens,
-                "total_tokens": self._last_response.usage.total_tokens,
-            },
-            "model": self._last_response.model,
-            "id": self._last_response.id,
+            "model": self._model_name,
+            "note": "Limited metadata available - possibly from streaming response",
         }
