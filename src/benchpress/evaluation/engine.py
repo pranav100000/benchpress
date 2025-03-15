@@ -196,17 +196,12 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                 streaming_panel.renderable = streaming_content
                                 # Force a refresh to update the display
                                 live.refresh()
-                        
-                        # After streaming completes, show the nicely formatted version
-                        formatted_output = latex_to_unicode(model_output)
-                        self.console.print(
-                            Panel(
-                                formatted_output,
-                                title="Model Response (Complete)",
-                                border_style="yellow",
-                                width=88
-                            )
-                        )
+                            
+                            # After streaming completes, update the panel title
+                            formatted_output = latex_to_unicode(model_output)
+                            streaming_panel.title = "Model Response (Complete)"
+                            streaming_panel.renderable = formatted_output
+                            live.refresh()
                         
                         # Restart the progress bar
                         progress.start()
