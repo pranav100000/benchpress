@@ -14,6 +14,7 @@ from openai.types.chat.chat_completion_user_message_param import (
 )
 
 from .base import BaseModel
+import tiktoken
 
 
 class GlhfModel(BaseModel):
@@ -109,18 +110,24 @@ class GlhfModel(BaseModel):
             if should_stream:
                 # Stream the response and accumulate it
                 content = ""
-                stream = await self._client.chat.completions.create(
-                    model=self._model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stop=stop_sequences,
-                    stream=True,
+                
+                # Prepare parameters, removing any None values
+                params = self.sanitize_params(
+                    {
+                        "model": self._model_name,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "stop": stop_sequences,
+                        "stream": True,
+                    },
                     **kwargs,
                 )
+                
+                stream = await self._client.chat.completions.create(**params)
 
                 # Track approximate token counts for metadata
-                prompt_tokens = len(prompt) // 4  # Very rough estimate
+                prompt_tokens = len(tiktoken.encoding_for_model(self._model_name).encode(prompt))
                 self._streamed_completion_tokens = 0
                 self._streamed_total_tokens = prompt_tokens
 
@@ -152,14 +159,19 @@ class GlhfModel(BaseModel):
                 return content
             else:
                 # Standard non-streaming request
-                response = await self._client.chat.completions.create(
-                    model=self._model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stop=stop_sequences,
+                # Prepare parameters, removing any None values
+                params = self.sanitize_params(
+                    {
+                        "model": self._model_name,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "stop": stop_sequences,
+                    },
                     **kwargs,
                 )
+                
+                response = await self._client.chat.completions.create(**params)
 
                 self._last_response = response
                 return response.choices[0].message.content or ""
@@ -222,15 +234,20 @@ class GlhfModel(BaseModel):
         
         # Create a streaming request
         try:
-            stream = await self._client.chat.completions.create(
-                model=self._model_name,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stop=stop_sequences,
-                stream=True,
+            # Prepare parameters, removing any None values
+            params = self.sanitize_params(
+                {
+                    "model": self._model_name,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stop": stop_sequences,
+                    "stream": True,
+                },
                 **kwargs,
             )
+            
+            stream = await self._client.chat.completions.create(**params)
 
             full_text = ""
             try:
@@ -282,7 +299,7 @@ class GlhfModel(BaseModel):
             # and then stop streaming
             error_msg = f"Streaming error: {str(e)}"
             # Just yield an empty string instead of an error message that would be displayed to the user
-            yield ""
+            yield error_msg
             # Log the actual error for debugging
             print(f"GLHF Streaming error: {str(e)}")
             return

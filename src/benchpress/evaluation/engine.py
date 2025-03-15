@@ -1,7 +1,6 @@
 """Evaluation engine for benchpress."""
 
 import json
-import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
@@ -36,6 +35,7 @@ class EvaluationEngine:
         debug: bool = False,
         console: Optional[Console] = None,
         streaming: bool = False,
+        max_tokens: Optional[int] = None,
     ):
         """Initialize the evaluation engine.
 
@@ -46,6 +46,7 @@ class EvaluationEngine:
             debug: Whether to show detailed debug information (optional)
             console: Rich console for output formatting (optional)
             streaming: Whether to use streaming API for model generation (optional)
+            max_tokens: Maximum number of tokens to generate (optional)
         """
         self.model = model
         self.output_dir = Path(output_dir) if output_dir else None
@@ -53,6 +54,7 @@ class EvaluationEngine:
         self.debug = debug
         self.console = console
         self.streaming = streaming
+        self.max_tokens = max_tokens
 
     async def evaluate_task(
         self, task: BaseTask, limit: Optional[int] = None
@@ -193,7 +195,10 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         # Set vertical_overflow="visible" to allow content to be scrollable
                         with Live(streaming_panel, console=self.console, refresh_per_second=10, 
                                  transient=False, auto_refresh=False, vertical_overflow="visible") as live:
-                            async for chunk in self.model.stream_generate(prompt):
+                            async for chunk in self.model.stream_generate(
+                                prompt,
+                                max_tokens=self.max_tokens
+                            ):
                                 model_output += chunk
                                 streaming_content += chunk
                                 
@@ -218,7 +223,10 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         self.console.print("Generating response...", style="yellow")
                         
                         # Generate the response
-                        model_output = await self.model.generate(prompt)
+                        model_output = await self.model.generate(
+                            prompt,
+                            max_tokens=self.max_tokens
+                        )
                         
                         # Format and display the complete response
                         formatted_output = latex_to_unicode(model_output)
@@ -441,10 +449,16 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                 # Handle streaming in silent mode too
                 if self.streaming:
                     model_output = ""
-                    async for chunk in self.model.stream_generate(prompt):
+                    async for chunk in self.model.stream_generate(
+                        prompt,
+                        max_tokens=self.max_tokens
+                    ):
                         model_output += chunk
                 else:
-                    model_output = await self.model.generate(prompt)
+                    model_output = await self.model.generate(
+                        prompt,
+                        max_tokens=self.max_tokens
+                    )
                     
                 result = await task.evaluate_example(example, model_output)
                 result.model_id = self.model.model_id
