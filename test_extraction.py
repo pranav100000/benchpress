@@ -2,7 +2,7 @@
 
 from benchpress.extraction.base import ExtractionContext
 from benchpress.extraction.general import GeneralExtractor
-from benchpress.extraction.math import MathExtractor
+from benchpress.extraction.math_utils import MathExtractor
 
 
 def test_general_extraction():

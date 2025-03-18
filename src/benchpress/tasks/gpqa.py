@@ -1,14 +1,14 @@
 """GPQA Diamond benchmark task."""
 
 import re
-from typing import List, Optional, Union, Literal, Dict, Any
+from typing import List, Literal, Optional
 
 from ..datasets.gpqa_dataset import GpqaDataset
 from ..datasets.gpqa_hf_dataset import GpqaHfDataset
-from ..utils import get_hf_token
 from ..examples.gpqa import GpqaExample
-from ..extraction import create_extractor
-from ..extraction.base import ExtractedAnswer, ExtractionContext
+from ..extraction import ExtractionContext, extract_answer, ExtractedAnswer
+from ..utils import get_hf_token
+from ..utils.math_comparison import compare_answers
 from .base import BaseTask, TaskResult
 from .registry import register_task
 
@@ -18,7 +18,7 @@ class GpqaTask(BaseTask[GpqaExample]):
     """GPQA Diamond benchmark task implementation."""
 
     def __init__(
-        self, 
+        self,
         data_path: Optional[str] = None,
         dataset_source: Literal["csv", "huggingface"] = "csv",
         hf_dataset_name: str = "Idavidrein/gpqa",
@@ -42,9 +42,6 @@ class GpqaTask(BaseTask[GpqaExample]):
         self._hf_config_name = hf_config_name
         self._hf_split = hf_split
         self._hf_token = hf_token
-        
-        # Initialize the extractor with GPQA domain
-        self._extractor = create_extractor("gpqa")
 
     @property
     def name(self) -> str:
@@ -66,7 +63,7 @@ class GpqaTask(BaseTask[GpqaExample]):
         if self._dataset_source == "huggingface":
             # Get token from environment if not provided
             token = self._hf_token or get_hf_token()
-            
+
             dataset = GpqaHfDataset(
                 data_path=self._data_path,
                 dataset_name=self._hf_dataset_name,
@@ -77,7 +74,7 @@ class GpqaTask(BaseTask[GpqaExample]):
         else:
             # Default to CSV dataset
             dataset = GpqaDataset(data_path=self._data_path)
-            
+
         return await dataset.load()
 
     async def evaluate_example(
@@ -99,10 +96,10 @@ class GpqaTask(BaseTask[GpqaExample]):
             expected_format=example.metadata.get("answer_format", "free-text"),
             metadata={"subject": example.subject}
         )
-        
+
         # Extract all candidate answers
         candidate_answers = self._extractor.extract(model_output, extraction_context)
-        
+
         # Use the highest confidence answer if available
         if candidate_answers and candidate_answers[0].confidence >= 0.3:
             extracted_answer = candidate_answers[0]
@@ -130,9 +127,14 @@ class GpqaTask(BaseTask[GpqaExample]):
                     metadata={"pattern_type": "fallback"}
                 )
 
-        # For GPQA, we need a more sophisticated answer matching approach
-        # For now, we'll use a simple substring check which is less strict
-        correct = example.answer.lower() in extracted_answer.text.lower()
+        # Use our comprehensive comparison approach for more consistent results
+        # This will handle various formatting differences
+        correct = compare_answers(extracted_answer.text, example.answer, domain="gpqa")
+        
+        # For GPQA, we also want to do a fallback substring check if the above fails
+        # This is less strict but catches cases where the answer is embedded in text
+        if not correct and hasattr(extracted_answer, "text"):
+            correct = example.answer.lower() in extracted_answer.text.lower()
 
         # Prepare the metadata with extraction information
         metadata = {
@@ -143,7 +145,7 @@ class GpqaTask(BaseTask[GpqaExample]):
             "subject": example.subject,
             "difficulty": example.difficulty,
         }
-        
+
         # Include alternatives if available (other candidates)
         alternative_answers = candidate_answers[1:] if len(candidate_answers) > 1 else []
         if alternative_answers:

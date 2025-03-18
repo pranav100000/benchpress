@@ -1,11 +1,11 @@
 """AIME24 benchmark task."""
 
 import os
-import re
 from typing import List, Optional
 
 from ..examples.aime24 import Aime24Example
-from ..extraction import create_extractor, ExtractionContext
+from ..extraction import ExtractionContext, extract_answer
+from ..utils.math_comparison import compare_answers
 from .base import BaseTask, TaskResult
 from .registry import register_task
 
@@ -114,53 +114,53 @@ Remember, AIME problems require exact answers, not decimal approximations."""
         Returns:
             A task result containing the evaluation
         """
-        # AIME problems typically have integer answers, often 3 digits
-        # Extract the final answer from the model output
+        # Create extraction context
+        context = ExtractionContext(
+            domain="aime24",
+            task_name="aime24",
+            expected_format="integer",
+            question_type="math",
+            metadata={
+                "year": example.year,
+                "problem_number": example.problem_number,
+            }
+        )
 
-        # Try several patterns to extract the answer
+        # Extract answers using the simplified extraction system
+        candidates = extract_answer(model_output, context)
 
-        # Pattern 1: Look for "boxed" answers, common in LaTeX
-        boxed_pattern = r"\\boxed{(\d+)}"
-        match = re.search(boxed_pattern, model_output)
+        # Get the best answer (highest confidence)
+        extracted_answer = ""
+        if candidates:
+            extracted_answer = candidates[0].text
 
-        if not match:
-            # Pattern 2: Look for "answer/solution/result: X"
-            answer_pattern = r"(?:answer|result|solution|final answer):\s*(\d+)"
-            match = re.search(answer_pattern, model_output.lower(), re.DOTALL)
+        # Use comprehensive answer comparison
+        correct = compare_answers(extracted_answer, example.answer, domain="aime24")
 
-        if not match:
-            # Pattern 3: Look for "the answer is X"
-            is_pattern = (
-                r"(?:the\s+)?(?:answer|result|solution)\s+is\s+(?:\$)?(\d+)(?:\$)?"
-            )
-            match = re.search(is_pattern, model_output.lower(), re.DOTALL)
+        # Build metadata dictionary
+        metadata = {
+            "extracted_answer": extracted_answer,
+            "expected_answer": example.answer,
+            "year": example.year,
+            "problem_number": example.problem_number,
+        }
 
-        if not match:
-            # Pattern 4: Look for "= X" at the end of a line or followed by period
-            equals_pattern = r"=\s*(?:\$)?(\d+)(?:\$)?(?:\s*$|\s*\.)"
-            match = re.search(equals_pattern, model_output)
+        # Add extraction details if available
+        if candidates:
+            best_candidate = candidates[0]
+            metadata["extraction_method"] = best_candidate.pattern_name
+            metadata["method"] = best_candidate.pattern_name  # Alternative key for backward compatibility
+            metadata["extraction_confidence"] = float(best_candidate.confidence)
+            metadata["confidence"] = float(best_candidate.confidence)  # Alternative key
 
-        extracted_answer = None
-        if match:
-            extracted_answer = match.group(1).strip()
-        else:
-            # Fallback: Try to find the last occurrence of a number with 1-3 digits
-            # which is common for AIME problems
-            number_matches = re.findall(r"\b(\d{1,3})\b", model_output)
-            extracted_answer = number_matches[-1] if number_matches else ""
-
-        # Simple exact match evaluation
-        correct = extracted_answer == example.answer
+            if best_candidate.metadata:
+                for key, value in best_candidate.metadata.items():
+                    metadata[key] = value
 
         return TaskResult(
             example_id=example.id,
             model_id="",  # Will be filled in by the evaluation engine
             model_output=model_output,
             correct=correct,
-            metadata={
-                "extracted_answer": extracted_answer,
-                "expected_answer": example.answer,
-                "year": example.year,
-                "problem_number": example.problem_number,
-            },
+            metadata=metadata,
         )

@@ -5,7 +5,8 @@ from typing import List, Optional
 
 from ..datasets.math500_hf_dataset import Math500HfDataset
 from ..examples.math500 import Math500Example
-from ..extraction import ExtractionContext, create_extractor
+from ..extraction import ExtractionContext, extract_answer
+from ..utils.math_comparison import compare_answers
 from .base import BaseTask, TaskResult
 from .registry import register_task
 
@@ -72,6 +73,21 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
             answer
         )
 
+        # Special case for coordinate pairs with fractions - the issue we're fixing
+        # Pattern for LaTeX coordinate pairs with fractions like \left( 3, \frac{\pi}{2} \right)
+        latex_coord_match = re.search(r'\\left\s*\(\s*(\d+)\s*,\s*\\frac\s*\{\\pi\}\s*\{(\d+)\}\s*\\right\s*\)', answer)
+        if latex_coord_match:
+            x_value = latex_coord_match.group(1)
+            denom = latex_coord_match.group(2)
+            return f"({x_value},π/{denom})"
+
+        # Regular coordinate pairs like (3,π/2)
+        simple_coord_match = re.search(r'\(\s*(\d+)\s*,\s*π/(\d+)\s*\)', answer)
+        if simple_coord_match:
+            x_value = simple_coord_match.group(1)
+            denom = simple_coord_match.group(2)
+            return f"({x_value},π/{denom})"
+
         # Replace LaTeX fractions with division notation
         answer = re.sub(r"\\frac{([^}]+)}{([^}]+)}", r"\1/\2", answer)
         answer = re.sub(r"\\dfrac{([^}]+)}{([^}]+)}", r"\1/\2", answer)
@@ -88,7 +104,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
         # Replace LaTeX special symbols
         answer = answer.replace("pi", "π")
 
-        # Normalize fractions (both numeric and symbolic) - keep consistent with processors.py
+        # Normalize fractions (both numeric and symbolic)
         try:
             # Check for numeric fractions first
             if "/" in answer:
@@ -167,34 +183,25 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
             }
         )
 
-        # Create math extractor
-        extractor = create_extractor(domain="math500")
-
-        # Extract answers
-        candidates = extractor.extract(model_output, context)
+        # Extract answers using the simplified extraction system
+        candidates = extract_answer(model_output, context)
 
         # Get the best answer (highest confidence)
         extracted_answer = ""
         if candidates:
-            extracted_answer = candidates[0].normalized_text or candidates[0].text
+            extracted_answer = candidates[0].text
 
-        # Get the expected answer (normalize it too)
-        normalized_expected = self._normalize_math_answer(example.answer)
+        # Get the expected answer
+        expected_answer = example.answer
 
-        # For safety, also normalize the extracted answer again
-        normalized_extracted = self._normalize_math_answer(extracted_answer)
-
-        # Compare normalized answers
-        correct = normalized_extracted == normalized_expected
-
-        # If the normalized comparison fails, fall back to exact match
-        if not correct:
-            correct = extracted_answer == example.answer
+        # Compare answers using our comprehensive multi-tier comparison approach
+        # This checks raw, normalized, and mathematical equivalence
+        correct = compare_answers(extracted_answer, expected_answer, domain="math500")
 
         # Create detailed metadata
         metadata: dict[str, object] = {
             "extracted_answer": extracted_answer,
-            "expected_answer": example.answer,
+            "expected_answer": expected_answer,
             "category": example.category,
             "difficulty": example.difficulty,
         }
@@ -205,21 +212,20 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
             best_candidate = candidates[0]
             metadata["extraction_method"] = best_candidate.pattern_name
             metadata["method"] = best_candidate.pattern_name  # Alternative key
-            
+
             # Convert confidence to float and store in two formats
             confidence_float = float(best_candidate.confidence)
             metadata["extraction_confidence"] = confidence_float
             metadata["confidence"] = confidence_float  # Alternative key
-            
+
             # Store info about how it was extracted
-            metadata["extractor"] = best_candidate.extracted_by or "unknown"
             metadata["pattern_type"] = best_candidate.metadata.get("pattern_type", "unknown")
 
             # Add alternative candidates info if available
             if len(candidates) > 1:
                 alt_answers = [
                     {
-                        "text": c.normalized_text or c.text,
+                        "text": c.text,
                         "method": c.pattern_name,
                         "confidence": float(c.confidence)
                     }
