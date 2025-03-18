@@ -6,7 +6,7 @@ from typing import List, Optional, Tuple
 from benchpress.extraction import create_extractor
 from benchpress.extraction.base import ExtractionContext, ExtractedAnswer
 from benchpress.extraction.general import GeneralExtractor
-from benchpress.extraction.math import MathExtractor
+from benchpress.extraction.math_utils import MathExtractor
 
 from tests.fixtures.extraction_examples import (
     extraction_context,

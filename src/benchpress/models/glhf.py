@@ -21,7 +21,7 @@ class GlhfModel(BaseModel):
     """Model implementation for GLHF.chat API."""
 
     # Default base URL for GLHF.chat API
-    DEFAULT_API_BASE = "https://glhf.chat/api/openai/v1"
+    DEFAULT_API_BASE = "https://api.glhf.chat/v1"
 
     def __init__(
         self,

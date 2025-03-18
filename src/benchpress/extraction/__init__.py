@@ -4,19 +4,25 @@ This module provides utilities for extracting answers from model outputs
 with support for different types of questions and answer formats.
 """
 
-from .base import BaseExtractor, ExtractionContext, ExtractionPattern, ExtractedAnswer, PatternType
+# Simple extraction system
+from .core import ExtractionContext, ExtractedAnswer, extract_answer
+
+# Legacy compatibility imports
+from .base import BaseExtractor, ExtractionPattern, PatternType
 from .general import GeneralExtractor
-from .math import MathExtractor
+from .math_utils import MathExtractor
 from .patterns import create_domain_pattern_set, get_common_patterns
-from .processors import (
-    clean_whitespace, normalize_math_answer, remove_latex_formatting, remove_markers
-)
 from .registry import register_extractor, extractor_registry, get_extractor
+from .processors import clean_whitespace, remove_markers, remove_latex_formatting
 
 __all__ = [
-    "BaseExtractor", 
-    "ExtractedAnswer",
+    # New simplified API
     "ExtractionContext",
+    "ExtractedAnswer",
+    "extract_answer",
+    
+    # Legacy API (for backward compatibility)
+    "BaseExtractor", 
     "ExtractionPattern",
     "PatternType",
     "GeneralExtractor",
@@ -29,10 +35,9 @@ __all__ = [
     "clean_whitespace",
     "remove_markers",
     "remove_latex_formatting",
-    "normalize_math_answer",
 ]
 
-# Create convenience function for getting an extractor instance
+# Legacy create_extractor function - kept for backward compatibility
 def create_extractor(
     domain: str = "general", 
     extractor_name: str = None

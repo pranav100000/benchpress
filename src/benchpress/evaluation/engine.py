@@ -194,7 +194,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         # Set auto_refresh=False to ensure we control when to refresh
                         # Set vertical_overflow="visible" to allow content to be scrollable
                         with Live(streaming_panel, console=self.console, refresh_per_second=10, 
-                                 transient=False, auto_refresh=False, vertical_overflow="visible") as live:
+                                 transient=False, auto_refresh=True, vertical_overflow="visible") as live:
                             async for chunk in self.model.stream_generate(
                                 prompt,
                                 max_tokens=self.max_tokens
@@ -208,12 +208,10 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                 # Update the panel content with formatted text
                                 streaming_panel.renderable = formatted_streaming
                                 # Force a refresh to update the display
-                                live.refresh()
                             
                             # After streaming completes, update the panel title
                             streaming_panel.title = "Model Response (Complete)"
                             # No need to reformat as we've been formatting all along
-                            live.refresh()
                         
                         # Restart the progress bar
                         progress.start()
