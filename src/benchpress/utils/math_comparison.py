@@ -160,22 +160,28 @@ def compare_expressions(expr1: str, expr2: str) -> bool:
 
 
 def normalize_expression(expr: str) -> str:
-    """Enhanced normalization for expressions that handles LaTeX and Unicode math.
-
-    Args:
-        expr: Expression to normalize
-
-    Returns:
-        Normalized expression
-    """
+    """Enhanced normalization for expressions that handles LaTeX and Unicode math."""
     if not expr:
         return ""
     
-    #remove \boxed{}
+    # Remove \boxed{}
     expr = re.sub(r'\\boxed\{(.*?)\}', r'\1', expr)
 
     # Remove all whitespace
     expr = re.sub(r'\s+', '', expr)
+
+    # First convert \pm or ± to expanded form
+    pm_match = re.search(r'(.*?)(?:\\pm|±)(.*)', expr)
+    if pm_match:
+        base = pm_match.group(1).strip()
+        term = pm_match.group(2).strip()
+        expr = f"{base}+{term},{base}-{term}"
+
+    # Handle comma-separated expressions, but only if not within parentheses
+    if ',' in expr and not re.search(r'\([^,]*,[^,]*\)', expr):
+        parts = [part.strip() for part in expr.split(',')]
+        parts.sort()
+        expr = ','.join(parts)
 
     # Handle LaTeX text commands - very common in text answers
     expr = re.sub(r'\\text\{([^}]*)\}', r'\1', expr)
@@ -183,6 +189,8 @@ def normalize_expression(expr: str) -> str:
     # Handle square root notation in different forms
     # LaTeX \sqrt{...}
     expr = re.sub(r'\\sqrt\{([^}]*)\}', r'sqrt(\1)', expr)
+    # LaTeX \sqrt without braces
+    expr = re.sub(r'\\sqrt(\d+)', r'sqrt(\1)', expr)
     # Unicode √
     expr = re.sub(r'√([a-zA-Z0-9]+)', r'sqrt(\1)', expr)
     # Handle √{...} notation
@@ -191,10 +199,6 @@ def normalize_expression(expr: str) -> str:
     # Handle inline fractions with various notations
     expr = re.sub(r'\\dfrac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
     expr = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
-    
-    # Remove degree symbols (both LaTeX and unicode versions)
-    expr = re.sub(r'\^\\circ$|\^∘$', '', expr)
-
 
     # Replace various pi symbols
     expr = expr.replace("π", "pi").replace("\\pi", "pi")
@@ -202,17 +206,30 @@ def normalize_expression(expr: str) -> str:
     # Remove LaTeX command markers and braces
     expr = expr.replace("\\left", "").replace("\\right", "")
     expr = expr.replace("{", "").replace("}", "")
-    # expr = expr.replace("\\", "")
 
     # Remove dollar signs
     expr = expr.replace("$", "")
-
-    # Remove all whitespace
-    expr = re.sub(r'\s+', '', expr)
     
+    # Remove degree symbols (both LaTeX and unicode versions)
+    expr = re.sub(r'\^\\circ|\^∘', '', expr)
+    expr = re.sub(r'\\text\{\s*degrees\s*\}', '', expr)  # LaTeX form with \text
+    expr = re.sub(r'\s*degrees\s*', '', expr)  # Plain text form
+    expr = re.sub(r'°', '', expr)  # Unicode degree symbol
+
     
     # Remove suffixes matching _number pattern
     expr = re.sub(r'_\d+$', '', expr)
+
+    # Or more comprehensively:
+    superscript_map = {'²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9'}
+    for sup, repl in superscript_map.items():
+        expr = expr.replace(sup, repl)
+        
+    # Remove all whitespace again (in case any was introduced)
+    expr = re.sub(r'\s+', '', expr)
+    
+    expr = expr.replace("\\", "")
+
 
     return expr.lower()
 
