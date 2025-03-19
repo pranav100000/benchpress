@@ -4,7 +4,7 @@ import os
 from typing import Any, AsyncGenerator, Dict, List, Optional, cast
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
+from openai.types.chat import ChatCompletion, ChatCompletionMessage
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.chat.chat_completion_user_message_param import (
     ChatCompletionUserMessageParam,
@@ -51,14 +51,14 @@ class OpenAICompatibleModel(BaseModel):
     def model_id(self) -> str:
         """Return the model identifier."""
         return self._model_name
-        
+
     def sanitize_params(
         self,
         base_params: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Sanitize parameters by removing None values and handling o1-specific requirements.
-        
+
         Extends the base implementation to handle o1's API requirements.
         o1 doesn't support the 'temperature' parameter.
 
@@ -71,15 +71,15 @@ class OpenAICompatibleModel(BaseModel):
         """
         # Get sanitized parameters from parent method
         params = super().sanitize_params(base_params, **kwargs)
-        
+
         # Check if we're using o1
         is_o1_model = "o1" in self._model_name
-        
+
         if is_o1_model:
             # o1 doesn't support temperature parameter
             if "temperature" in params:
                 del params["temperature"]
-            
+
         return params
 
     async def generate(
@@ -171,7 +171,7 @@ class OpenAICompatibleModel(BaseModel):
         self._streamed_completion_tokens = 0
         prompt_tokens = len(prompt) // 4  # Very rough estimate
         self._streamed_total_tokens = prompt_tokens
-        
+
         # Prepare parameters, removing any None values
         params = self.sanitize_params(
             {
@@ -184,7 +184,7 @@ class OpenAICompatibleModel(BaseModel):
             },
             **kwargs,
         )
-        
+
         # Use streaming API
         stream = await self._client.chat.completions.create(**params)
 
@@ -202,7 +202,7 @@ class OpenAICompatibleModel(BaseModel):
         # We don't have a full ChatCompletion object when streaming,
         # so we'll just store the id and model for metadata
         self._last_response = None  # Can't store the full response when streaming
-        
+
         # If nothing was yielded (empty response), yield an empty string
         if not full_text:
             yield ""
@@ -224,7 +224,7 @@ class OpenAICompatibleModel(BaseModel):
                 "model": self._last_response.model,
                 "id": self._last_response.id,
             }
-        
+
         # For streamed responses, provide estimated token counts
         return {
             "usage": {

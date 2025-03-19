@@ -1,7 +1,6 @@
 """Base model interface for benchpress."""
 
 from abc import ABC, abstractmethod
-import asyncio
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 
@@ -13,14 +12,14 @@ class BaseModel(ABC):
     def model_id(self) -> str:
         """Return the model identifier."""
         pass
-        
+
     def sanitize_params(
         self,
         base_params: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Sanitize parameters by removing None values.
-        
+
         This helps prevent errors with APIs that don't handle None values properly.
 
         Args:
@@ -32,7 +31,7 @@ class BaseModel(ABC):
         """
         # Combine base parameters with additional kwargs
         all_params = {**base_params, **kwargs}
-        
+
         # Filter out None values
         return {k: v for k, v in all_params.items() if v is not None}
 
@@ -68,7 +67,7 @@ class BaseModel(ABC):
         **kwargs: Any,
     ) -> AsyncGenerator[str, None]:
         """Stream a response from the model one chunk at a time.
-        
+
         Default implementation falls back to non-streaming generate().
         Models that support streaming should override this method.
 

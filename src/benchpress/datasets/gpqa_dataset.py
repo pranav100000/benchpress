@@ -1,18 +1,17 @@
 """GPQA dataset implementation for benchpress v2."""
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 from ..examples.gpqa import GpqaExample
-from .base import Dataset
 from .csv_dataset import CsvDataset
 
 
 def gpqa_mapper(row: Dict[str, str]) -> Dict[str, Any]:
     """Map a GPQA CSV row to GpqaExample parameters.
-    
+
     Args:
         row: A row from the GPQA CSV file
-        
+
     Returns:
         Dictionary of parameters for GpqaExample constructor
     """
@@ -37,10 +36,10 @@ def gpqa_mapper(row: Dict[str, str]) -> Dict[str, Any]:
 
 class GpqaDataset(CsvDataset[GpqaExample]):
     """GPQA dataset implementation."""
-    
+
     def __init__(self, version: str = "default", data_path: str = None):
         """Initialize the GPQA dataset.
-        
+
         Args:
             version: Dataset version (default is 'default')
             data_path: Override path to the dataset directory

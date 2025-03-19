@@ -10,12 +10,5 @@ env_path = Path(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))) / "
 load_dotenv(dotenv_path=env_path)
 
 # Import exception classes for easier access
-from benchpress.exceptions import (
-    BenchpressError,
-    DatasetError,
-    ModelError,
-    TaskError,
-    ExtractionError,
-)
 
 __version__ = "0.1.0"

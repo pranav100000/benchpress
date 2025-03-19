@@ -158,10 +158,10 @@ def normalize_expression(expr: str) -> str:
     """
     if not expr:
         return ""
-    
+
     # Handle LaTeX text commands - very common in text answers
     expr = re.sub(r'\\text\{([^}]*)\}', r'\1', expr)
-    
+
     # Handle square root notation in different forms
     # LaTeX \sqrt{...}
     expr = re.sub(r'\\sqrt\{([^}]*)\}', r'sqrt(\1)', expr)
@@ -169,24 +169,24 @@ def normalize_expression(expr: str) -> str:
     expr = re.sub(r'√([a-zA-Z0-9]+)', r'sqrt(\1)', expr)
     # Handle √{...} notation
     expr = re.sub(r'√\{([^}]*)\}', r'sqrt(\1)', expr)
-    
+
     # Handle inline fractions with various notations
     expr = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
-    
+
     # Replace various pi symbols
     expr = expr.replace("π", "pi").replace("\\pi", "pi")
-    
+
     # Remove LaTeX command markers and braces
     expr = expr.replace("\\left", "").replace("\\right", "")
     expr = expr.replace("{", "").replace("}", "")
     expr = expr.replace("\\", "")
-    
+
     # Remove dollar signs
     expr = expr.replace("$", "")
-    
+
     # Remove all whitespace
     expr = re.sub(r'\s+', '', expr)
-    
+
     return expr.lower()
 
 

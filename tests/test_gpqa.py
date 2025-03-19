@@ -1,15 +1,15 @@
 """Tests for the GPQA Diamond benchmark task."""
 
 import os
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from benchpress.tasks import task_registry
-from benchpress.tasks.gpqa import GpqaTask
-from benchpress.examples.gpqa import GpqaExample
+import pytest
 from benchpress.datasets.gpqa_dataset import GpqaDataset
 from benchpress.datasets.gpqa_hf_dataset import GpqaHfDataset
+from benchpress.examples.gpqa import GpqaExample
 from benchpress.extraction.base import ExtractedAnswer
+from benchpress.tasks import task_registry
+from benchpress.tasks.gpqa import GpqaTask
 
 
 def test_task_registration():
@@ -41,13 +41,13 @@ async def test_gpqa_load_examples():
     data_path = "/Users/pranavsharan/Developer/benchpress/datasets/gpqa_dataset"
     if not os.path.exists(data_path):
         pytest.skip("GPQA dataset not found")
-        
+
     task = GpqaTask(data_path=data_path)
     examples = await task.load_examples()
-    
+
     # Check that we have examples
     assert len(examples) > 0
-    
+
     # Check that all examples are of the correct type
     for example in examples:
         assert isinstance(example, GpqaExample)
@@ -63,18 +63,18 @@ async def test_gpqa_dataset_integration():
     data_path = "/Users/pranavsharan/Developer/benchpress/datasets/gpqa_dataset"
     if not os.path.exists(data_path):
         pytest.skip("GPQA dataset not found")
-        
+
     # Load examples directly from the dataset
     dataset = GpqaDataset(data_path=data_path)
     dataset_examples = await dataset.load()
-    
+
     # Load examples from the task
     task = GpqaTask(data_path=data_path)
     task_examples = await task.load_examples()
-    
+
     # Check that we get the same number of examples
     assert len(dataset_examples) == len(task_examples)
-    
+
     # Check that the first few examples match
     # (Not comparing all to avoid long test times)
     for i in range(min(5, len(dataset_examples))):
@@ -90,16 +90,16 @@ async def test_gpqa_evaluate_example():
     data_path = "/Users/pranavsharan/Developer/benchpress/datasets/gpqa_dataset"
     if not os.path.exists(data_path):
         pytest.skip("GPQA dataset not found")
-        
+
     task = GpqaTask(data_path=data_path)
     examples = await task.load_examples()
     example = examples[0]  # Use the first example
-    
+
     # Test with correct answer
     correct_output = f"After calculating the radius, I find that the answer is {example.answer}."
     result = await task.evaluate_example(example, correct_output)
     assert result.correct
-    
+
     # Test with incorrect answer
     incorrect_output = "The answer is clearly 42."
     result = await task.evaluate_example(example, incorrect_output)
@@ -148,12 +148,12 @@ async def test_gpqa_task_load_examples_csv(gpqa_example):
     # Create a custom mock
     mock_dataset = MagicMock()
     mock_dataset.load = AsyncMock(return_value=[gpqa_example])
-    
+
     # Patch the task's load_examples directly
     with patch.object(GpqaTask, "load_examples", return_value=[gpqa_example]):
         task = GpqaTask(data_path="test_path", dataset_source="csv")
         examples = await task.load_examples()
-        
+
         # Verify results
         assert len(examples) == 1
         assert examples[0].id == "test_id_1"
@@ -168,17 +168,17 @@ async def test_gpqa_task_load_examples_hf(mock_gpqa_hf_dataset, gpqa_example):
     """Test loading GPQA examples from HuggingFace dataset."""
     # Set up mock
     mock_gpqa_hf_dataset.load.return_value = [gpqa_example]
-    
+
     # Patch the dataset class
     with patch("benchpress.datasets.gpqa_hf_dataset.GpqaHfDataset", return_value=mock_gpqa_hf_dataset):
         task = GpqaTask(
-            data_path="test_path", 
+            data_path="test_path",
             dataset_source="huggingface",
             hf_dataset_name="test/gpqa",
             hf_config_name="diamond"
         )
         examples = await task.load_examples()
-        
+
         # Verify results
         assert len(examples) == 1
         assert examples[0].id == "test_id_1"
@@ -206,14 +206,14 @@ async def test_gpqa_evaluate_example_with_extraction(gpqa_example):
             metadata={"pattern_type": "domain"},
         )
     ]
-    
+
     # Patch the create_extractor function directly
     with patch("benchpress.tasks.gpqa.create_extractor", return_value=custom_mock):
         task = GpqaTask()
         model_output = "I believe the capital of France is Paris."
-        
+
         result = await task.evaluate_example(gpqa_example, model_output)
-        
+
         # Verify the result
         assert result.correct is True
         assert result.model_output == model_output
@@ -230,19 +230,19 @@ async def test_gpqa_evaluate_example_fallback(gpqa_example):
     # Create a custom mock that returns empty list (no answers found)
     custom_mock = MagicMock()
     custom_mock.extract.return_value = []
-    
-    # Also patch re.search to control the regex matching 
+
+    # Also patch re.search to control the regex matching
     mock_match = MagicMock()
     mock_match.group.return_value = "Paris"
-    
+
     # Patch both the extractor and the regex search
     with patch("benchpress.tasks.gpqa.create_extractor", return_value=custom_mock), \
          patch("re.search", return_value=mock_match):
         task = GpqaTask()
         model_output = "After analyzing the problem, I think the answer is: Paris."
-        
+
         result = await task.evaluate_example(gpqa_example, model_output)
-        
+
         # Verify the fallback extraction worked
         assert result.correct is True
         assert result.metadata["extracted_answer"] == "Paris"  # No period now

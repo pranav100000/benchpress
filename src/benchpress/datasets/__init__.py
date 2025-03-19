@@ -6,14 +6,14 @@ from .base import Dataset, DatasetRegistry
 dataset_registry = DatasetRegistry()
 
 # Import specific dataset types
+from .aime24_hf_dataset import Aime24HfDataset
 from .csv_dataset import CsvDataset
-from .json_dataset import JsonDataset
-from .huggingface_dataset import HuggingFaceDataset
 
 # Import specific datasets
 from .gpqa_dataset import GpqaDataset
+from .huggingface_dataset import HuggingFaceDataset
+from .json_dataset import JsonDataset
 from .math500_hf_dataset import Math500HfDataset
-from .aime24_hf_dataset import Aime24HfDataset
 
 # Register datasets
 dataset_registry.register(GpqaDataset)

@@ -1,6 +1,6 @@
 """MATH-500 Hugging Face dataset implementation for benchpress."""
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from ..examples.math500 import Math500Example
 from .huggingface_dataset import HuggingFaceDataset
@@ -8,10 +8,10 @@ from .huggingface_dataset import HuggingFaceDataset
 
 def math500_hf_mapper(item: Dict[str, Any]) -> Dict[str, Any]:
     """Map a MATH-500 HF dataset item to Math500Example parameters.
-    
+
     Args:
         item: An item from the MATH-500 HF dataset
-        
+
     Returns:
         Dictionary of parameters for Math500Example constructor
     """
@@ -19,11 +19,11 @@ def math500_hf_mapper(item: Dict[str, Any]) -> Dict[str, Any]:
     question = item.get("problem", "")
     answer = item.get("answer", "")
     subject = item.get("subject", "")
-    
+
     # Extract level (numeric 1-5)
     level = item.get("level", 3)  # Default to level 3 if missing
     unique_id = item.get("unique_id", "")
-    
+
     # Translate numeric level to difficulty string
     difficulty_map = {
         1: "easy",
@@ -33,7 +33,7 @@ def math500_hf_mapper(item: Dict[str, Any]) -> Dict[str, Any]:
         5: "hard",
     }
     difficulty = difficulty_map.get(level, "medium")
-    
+
     return {
         "id": f"math500_hf_{unique_id.replace('/', '_')}",
         "question": question,
@@ -52,15 +52,15 @@ def math500_hf_mapper(item: Dict[str, Any]) -> Dict[str, Any]:
 
 class Math500HfDataset(HuggingFaceDataset[Math500Example]):
     """MATH-500 HuggingFace dataset implementation."""
-    
+
     def __init__(
-        self, 
-        version: str = "default", 
+        self,
+        version: str = "default",
         data_path: Optional[str] = None,
         split: str = "test",  # MATH-500 only has a 'test' split
     ):
         """Initialize the MATH-500 HuggingFace dataset.
-        
+
         Args:
             version: Dataset version (default is 'default')
             data_path: Override path to cache the dataset

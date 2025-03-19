@@ -1,8 +1,7 @@
 """JSON dataset implementation for benchpress."""
 
 import json
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 from .base import Dataset
 
@@ -57,7 +56,7 @@ class JsonDataset(Dataset[T]):
 
         with open(file_path, "r", encoding=self.encoding) as f:
             data = json.load(f)
-            
+
         # If a root key is specified, extract the list from that key
         if self.root_key:
             if self.root_key not in data:
@@ -79,11 +78,11 @@ class JsonDataset(Dataset[T]):
         for i, item in enumerate(items):
             # Apply the mapper function to get the example parameters
             example_params = self.mapper(item)
-            
+
             # Add a default ID if none is provided
             if "id" not in example_params:
                 example_params["id"] = f"{self.name}_{i}"
-            
+
             # Create the example
             example = self.example_class(**example_params)
             examples.append(example)

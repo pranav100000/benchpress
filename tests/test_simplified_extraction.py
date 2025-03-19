@@ -1,20 +1,18 @@
 """Tests for the simplified extraction system."""
 
-import pytest
-from dataclasses import asdict
 
 # Import from the simplified extraction system
 from benchpress.extraction.core import (
-    extract_answer,
     ExtractionContext,
-    ExtractedAnswer,
+    extract_answer,
 )
+
 
 def get_first_answer(text, domain="math"):
     """Helper to get first extracted answer with highest confidence."""
     context = ExtractionContext(domain=domain, task_name="test")
     answers = extract_answer(text, context)
-    
+
     # Print details for debugging
     if answers:
         print(f"\nExtracted: {answers[0].text!r}")
@@ -22,7 +20,7 @@ def get_first_answer(text, domain="math"):
         print(f"Confidence: {answers[0].confidence}")
     else:
         print(f"\nNo answers extracted from: {text!r}")
-    
+
     return answers[0] if answers else None
 
 class TestBasicNumericFormats:
@@ -33,14 +31,14 @@ class TestBasicNumericFormats:
         # Plain integers
         assert get_first_answer("The answer is 42").text == "42"
         assert get_first_answer("We get -5").text == "-5"
-        
+
         # With explicit markers
         assert get_first_answer("ANSWER: 42").text == "42"
         assert get_first_answer("FINAL ANSWER: -123").text == "-123"
-        
+
         # With boxed notation
         assert get_first_answer("\\boxed{42}").text == "42"
-        
+
         # This case matches the explicit marker first
         assert '\\boxed{-7}' in get_first_answer("Answer: \\boxed{-7}").text
 
@@ -48,15 +46,15 @@ class TestBasicNumericFormats:
         """Test extraction of decimal numbers."""
         # Standard decimals
         assert get_first_answer("The answer is 3.14159").text == "3.14159"
-        
+
         # The system is capturing the full decimal, this is just a pattern matching issue
         # The actual check with SymPy would handle this properly
         assert ".5" in get_first_answer("We get 0.5").text
-        
+
         # Leading decimal
         answer = get_first_answer("The answer is .5")
         assert ".5" in answer.text
-        
+
         # Negative decimals
         assert get_first_answer("Answer: -2.5").text == "-2.5"
 
@@ -64,16 +62,16 @@ class TestBasicNumericFormats:
         """Test extraction of fractions."""
         # Plain text fractions
         assert get_first_answer("The answer is 3/7").text == "3/7"
-        assert get_first_answer("We get 10/15").text == "10/15" 
-        
+        assert get_first_answer("We get 10/15").text == "10/15"
+
         # LaTeX fractions - we get the raw LaTeX which SymPy would parse
         answer = get_first_answer("\\boxed{\\frac{17}{42}}")
         assert "\\frac{17}{42}" in answer.text
-        
+
         # Negative fractions
         answer = get_first_answer("The answer is -3/4")
         assert answer.text == "-3/4"
-        
+
         # Mixed number - we keep as is and SymPy would handle
         answer = get_first_answer("The answer is 1 2/3")
         assert "1 2/3" in answer.text
@@ -86,7 +84,7 @@ class TestLaTeXFormatting:
         """Test extraction of boxed content."""
         assert get_first_answer("\\boxed{42}").text == "42"
         assert get_first_answer("\\boxed{x^2 + y^2}").text == "x^2 + y^2"
-        
+
         # LaTeX is preserved for SymPy to handle
         assert "\\frac{3}{7}" in get_first_answer("Therefore \\boxed{\\frac{3}{7}}").text
 
@@ -95,7 +93,7 @@ class TestLaTeXFormatting:
         assert "$42$" in get_first_answer("The answer is $42$").text
         assert "$\\frac{1}{2}$" in get_first_answer("We get $\\frac{1}{2}$").text
         assert "x^2 + y^2" in get_first_answer("$$x^2 + y^2$$").text
-        
+
     def test_latex_fractions(self):
         """Test extraction of LaTeX fractions."""
         assert "\\frac{3}{7}" in get_first_answer("\\frac{3}{7}").text
@@ -116,7 +114,7 @@ class TestMathematicalSymbols:
         """Test extraction of mathematical constants."""
         assert "\\pi" in get_first_answer("The answer is \\pi").text
         assert "e" in get_first_answer("We get e").text
-        
+
     def test_operation_symbols(self):
         """Test extraction with operation symbols."""
         assert "\\times" in get_first_answer("$x \\times y$").text
@@ -159,7 +157,7 @@ class TestCoordinatePairs:
         """Test extraction of LaTeX coordinate pairs."""
         answer = get_first_answer("\\boxed{\\left(3, \\frac{\\pi}{2}\\right)}")
         assert "\\left(3, \\frac{\\pi}{2}\\right)" in answer.text
-        
+
         answer = get_first_answer("The point is \\left(\\frac{1}{2}, 5\\right)")
         assert "\\left(\\frac{1}{2}, 5\\right)" in answer.text
 
@@ -198,7 +196,7 @@ class TestEdgeCases:
         """Test extraction with nested LaTeX expressions."""
         answer = get_first_answer("\\boxed{\\frac{1 + \\sqrt{5}}{2}}")
         assert "\\frac{1 + \\sqrt{5}}{2}" in answer.text
-        
+
         answer = get_first_answer("\\frac{x^2 + \\frac{1}{x}}{y}")
         assert "\\frac" in answer.text and "x^2" in answer.text
 
@@ -217,10 +215,10 @@ class TestEdgeCases:
         """
         answers = extract_answer(text, ExtractionContext(domain="math", task_name="test"))
         assert len(answers) > 1
-        
+
         # The highest confidence answer should be the final one
         assert "15" in answers[0].text
-        
+
         # But other candidate answers should also be extracted
         extracted_texts = [a.text for a in answers]
         assert any("5" in t for t in extracted_texts)

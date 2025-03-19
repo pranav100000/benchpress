@@ -1,7 +1,6 @@
 """Tests for the AIME24 benchmark task."""
 
 import pytest
-
 from benchpress.tasks.aime24 import Aime24Task
 
 
