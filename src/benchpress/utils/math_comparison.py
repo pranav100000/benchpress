@@ -32,18 +32,30 @@ def compare_answers(llm_answer: str, reference_answer: str, domain: str = "math"
 
     # 2. Basic normalization comparison
     # Use existing normalize_expression function for simple normalization
-    if normalize_expression(llm_answer) == normalize_expression(reference_answer):
+    normalized_llm_answer = normalize_expression(llm_answer)
+    normalized_ref_answer = normalize_expression(reference_answer)
+    if normalized_llm_answer == normalized_ref_answer:
+        return True
+    if normalized_llm_answer == reference_answer:
+        return True
+    if llm_answer == normalized_ref_answer:
         return True
 
     # 3. Mathematical comparison using SymPy (if in math domain)
     if domain.lower() in ("math", "math500", "aime24"):
         try:
             # Try mathematical comparison with SymPy
-            return compare_math_expressions(llm_answer, reference_answer)
+            if compare_math_expressions(llm_answer, reference_answer):
+                return True
+            if compare_math_expressions(normalized_llm_answer, reference_answer):
+                return True
+            if compare_math_expressions(llm_answer, normalized_ref_answer):
+                return True
         except Exception:
             # If SymPy comparison fails, we already tried normalization above
             pass
 
+    print(f"Failed to compare {llm_answer} and {reference_answer}")
     return False
 
 
@@ -158,6 +170,12 @@ def normalize_expression(expr: str) -> str:
     """
     if not expr:
         return ""
+    
+    #remove \boxed{}
+    expr = re.sub(r'\\boxed\{(.*?)\}', r'\1', expr)
+
+    # Remove all whitespace
+    expr = re.sub(r'\s+', '', expr)
 
     # Handle LaTeX text commands - very common in text answers
     expr = re.sub(r'\\text\{([^}]*)\}', r'\1', expr)
@@ -171,7 +189,12 @@ def normalize_expression(expr: str) -> str:
     expr = re.sub(r'√\{([^}]*)\}', r'sqrt(\1)', expr)
 
     # Handle inline fractions with various notations
+    expr = re.sub(r'\\dfrac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
     expr = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
+    
+    # Remove degree symbols (both LaTeX and unicode versions)
+    expr = re.sub(r'\^\\circ$|\^∘$', '', expr)
+
 
     # Replace various pi symbols
     expr = expr.replace("π", "pi").replace("\\pi", "pi")
@@ -179,13 +202,17 @@ def normalize_expression(expr: str) -> str:
     # Remove LaTeX command markers and braces
     expr = expr.replace("\\left", "").replace("\\right", "")
     expr = expr.replace("{", "").replace("}", "")
-    expr = expr.replace("\\", "")
+    # expr = expr.replace("\\", "")
 
     # Remove dollar signs
     expr = expr.replace("$", "")
 
     # Remove all whitespace
     expr = re.sub(r'\s+', '', expr)
+    
+    
+    # Remove suffixes matching _number pattern
+    expr = re.sub(r'_\d+$', '', expr)
 
     return expr.lower()
 
