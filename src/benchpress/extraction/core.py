@@ -1,34 +1,21 @@
-"""Core extraction functionality for benchpress."""
+"""Core extraction functionality for benchpress.
+
+This module provides the unified extraction system for extracting answers from
+model outputs with support for different types of questions and answer formats.
+"""
 
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Pattern, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Pattern as RegexPattern
 
+# Import shared classes from base module to avoid duplication
+from .base import ExtractionContext, ExtractionPattern, ExtractedAnswer, PatternType
 
-@dataclass
-class ExtractionContext:
-    """Context for answer extraction."""
-
-    domain: str
-    task_name: str
-    expected_format: Optional[str] = None
-    question_type: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-@dataclass
-class ExtractedAnswer:
-    """An answer extracted from model output."""
-
-    text: str
-    pattern_name: str
-    confidence: float
-    position: Optional[Tuple[int, int]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
 
 def extract_answer(
     text: str,
     context: ExtractionContext,
-    patterns: Optional[List[Dict[str, Any]]] = None
+    patterns: Optional[List[Dict[str, Any]]] = None,
+    normalize_answers: bool = True
 ) -> List[ExtractedAnswer]:
     """Extract answers from model output.
 
@@ -36,11 +23,13 @@ def extract_answer(
         text: Model output text
         context: Extraction context
         patterns: Optional list of patterns to use (defaults to domain-specific patterns)
+        normalize_answers: Whether to normalize extracted answers (default: True)
 
     Returns:
         List of extracted answers sorted by confidence
     """
     from .patterns import get_patterns_for_domain
+    from .processors import normalize_answer
 
     # Get appropriate patterns for this domain
     patterns = patterns or get_patterns_for_domain(context.domain)
@@ -53,13 +42,24 @@ def extract_answer(
         for match_text, position in matches:
             # Compute confidence
             confidence = _compute_confidence(pattern, position, len(text))
+            
+            # Apply normalization if requested
+            normalized = None
+            if normalize_answers:
+                try:
+                    normalized = normalize_answer(match_text, context.domain)
+                except Exception:
+                    # If normalization fails, leave as None
+                    pass
 
             # Create extracted answer
             answer = ExtractedAnswer(
                 text=match_text,
                 pattern_name=pattern['name'],
                 confidence=confidence,
+                normalized_text=normalized,
                 position=position,
+                extracted_by="extract_answer",
                 metadata={"pattern_type": pattern.get('type', 'unknown')}
             )
 
@@ -70,13 +70,14 @@ def extract_answer(
 
     return candidates
 
+
 def _apply_pattern(pattern: Dict[str, Any], text: str) -> List[Tuple[str, Tuple[int, int]]]:
     """Apply a pattern to extract answers."""
 
     pattern_obj = pattern['pattern']
     matches = []
 
-    if isinstance(pattern_obj, (str, Pattern)):
+    if isinstance(pattern_obj, (str, RegexPattern)):
         # It's a regex pattern
         for match in re.finditer(pattern_obj, text, re.MULTILINE | re.DOTALL):
             if match.groups():
@@ -97,27 +98,9 @@ def _apply_pattern(pattern: Dict[str, Any], text: str) -> List[Tuple[str, Tuple[
 
     return matches
 
+
 def _compute_confidence(pattern: Dict[str, Any], position: Tuple[int, int], text_length: int) -> float:
     """Compute confidence score for a pattern match."""
-    start, end = position
-
-    # Base confidence from pattern
-    confidence = pattern.get('base_confidence', 0.5)
-
-    # Adjust based on pattern type
-    type_boost = {
-        'explicit': 0.3,    # Most confident
-        'structural': 0.2,  # Very confident
-        'domain': 0.1,      # Domain-specific
-        'positional': 0.0,  # Position-based
-        'fallback': -0.1,   # Last resort
-    }
-    confidence += type_boost.get(pattern.get('type', 'fallback'), 0.0)
-
-    # Position factor (later in text is better)
-    # Scale from 0.0 to 0.1 based on position
-    position_factor = start / max(1, text_length)
-    confidence += position_factor * 0.1
-
-    # Cap confidence between 0 and 1
-    return max(0.0, min(1.0, confidence))
+    # Use the shared utility function
+    from .base import compute_confidence_score
+    return compute_confidence_score(pattern, position, text_length)

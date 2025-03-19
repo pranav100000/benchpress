@@ -152,6 +152,26 @@ def normalize_for_domain(domain: str) -> Callable[[str], str]:
     # Return the domain-specific normalizer or a basic one
     return normalizers.get(domain.lower(), lambda text: clean_whitespace(remove_markers(text)))
 
+
+def normalize_answer(text: str, domain: str) -> str:
+    """Normalize an answer based on its domain.
+    
+    This is the main normalization function that should be used by the extraction system.
+    
+    Args:
+        text: The text to normalize
+        domain: The domain identifier
+        
+    Returns:
+        Normalized answer text
+    """
+    # Get the appropriate normalizer for this domain
+    normalizer = normalize_for_domain(domain)
+    
+    # Apply the normalizer
+    return normalizer(text)
+
+
 # Legacy compatibility functions
 processor_registry: Dict[str, Callable[[str], str]] = {
     "clean_whitespace": clean_whitespace,
@@ -160,6 +180,7 @@ processor_registry: Dict[str, Callable[[str], str]] = {
     "normalize_math_answer": normalize_math_answer,
     "normalize_gpqa_answer": normalize_gpqa_answer,
     "normalize_coordinates": normalize_coordinates,
+    "normalize_answer": normalize_answer,
 }
 
 def create_processor_pipeline(
