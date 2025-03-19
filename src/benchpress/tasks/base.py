@@ -17,6 +17,11 @@ class TaskResult:
     correct: bool
     metadata: Optional[Dict[str, Any]] = None
 
+    # Fields for supporting parallel processing display
+    raw_output: Optional[str] = None
+    example_index: Optional[int] = None
+    total_examples: Optional[int] = None
+
 
 T = TypeVar("T", bound=Example)
 

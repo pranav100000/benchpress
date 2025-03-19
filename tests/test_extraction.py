@@ -1,6 +1,7 @@
 """Tests for the extraction module."""
 
 import pytest
+
 from benchpress.extraction import (
     ExtractionContext,
     GeneralExtractor,

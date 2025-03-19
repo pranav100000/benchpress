@@ -177,11 +177,11 @@ def compute_confidence_score(
         Confidence score between 0 and 1
     """
     start, end = position
-    
+
     # For dict-based patterns (from core.py)
     base_confidence = pattern.get('base_confidence', 0.5)
     pattern_type = pattern.get('type', 'fallback')
-    
+
     # Adjust based on pattern type
     type_boost: Dict[str, float] = {
         'explicit': 0.3,    # Most confident
@@ -191,11 +191,11 @@ def compute_confidence_score(
         'fallback': -0.1,   # Last resort
     }
     confidence = base_confidence + type_boost.get(pattern_type, 0.0)
-    
+
     # Position factor (later in text is better)
     # Scale from 0.0 to 0.1 based on position
     position_factor = start / max(1, text_length)
     confidence += position_factor * 0.1
-    
+
     # Cap confidence between 0 and 1
     return max(0.0, min(1.0, confidence))

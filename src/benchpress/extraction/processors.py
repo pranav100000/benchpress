@@ -167,7 +167,7 @@ def normalize_answer(text: str, domain: str) -> str:
     """
     # Get the appropriate normalizer for this domain
     normalizer = normalize_for_domain(domain)
-    
+
     # Apply the normalizer
     return normalizer(text)
 

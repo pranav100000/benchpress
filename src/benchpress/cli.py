@@ -78,6 +78,10 @@ def evaluate(
         False, "--stream", "--streaming",
         help="Stream model responses in real-time as they're generated"
     ),
+    sequential: bool = typer.Option(  # noqa: B008
+        False, "--sequential",
+        help="Process examples sequentially instead of in parallel"
+    ),
 ) -> None:
     """Evaluate a model on one or more benchmark tasks."""
     # Validate tasks
@@ -134,6 +138,7 @@ def evaluate(
         console=console,
         streaming=streaming,
         max_tokens=max_tokens,
+        sequential=sequential,
     )
 
     # Prepare results table

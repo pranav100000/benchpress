@@ -163,7 +163,7 @@ def normalize_expression(expr: str) -> str:
     """Enhanced normalization for expressions that handles LaTeX and Unicode math."""
     if not expr:
         return ""
-    
+
     # Remove \boxed{}
     expr = re.sub(r'\\boxed\{(.*?)\}', r'\1', expr)
 
@@ -209,14 +209,14 @@ def normalize_expression(expr: str) -> str:
 
     # Remove dollar signs
     expr = expr.replace("$", "")
-    
+
     # Remove degree symbols (both LaTeX and unicode versions)
     expr = re.sub(r'\^\\circ|\^∘', '', expr)
     expr = re.sub(r'\\text\{\s*degrees\s*\}', '', expr)  # LaTeX form with \text
     expr = re.sub(r'\s*degrees\s*', '', expr)  # Plain text form
     expr = re.sub(r'°', '', expr)  # Unicode degree symbol
 
-    
+
     # Remove suffixes matching _number pattern
     expr = re.sub(r'_\d+$', '', expr)
 
@@ -224,10 +224,10 @@ def normalize_expression(expr: str) -> str:
     superscript_map = {'²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9'}
     for sup, repl in superscript_map.items():
         expr = expr.replace(sup, repl)
-        
+
     # Remove all whitespace again (in case any was introduced)
     expr = re.sub(r'\s+', '', expr)
-    
+
     expr = expr.replace("\\", "")
 
 

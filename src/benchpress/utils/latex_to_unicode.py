@@ -61,13 +61,13 @@ def latex_to_unicode(latex_str: str, colorize: bool = True) -> str:
 
     # Handle boxed content
     result = re.sub(r"\\boxed\{([^{}]*)\}", r"[\1]", result)
-    
+
     # Handle degree symbols
     result = re.sub(r'\^\\circ$|\^∘$', '°', result)
-    
+
     # Handle \dots
     result = re.sub(r'\\dots', '...', result)
-    
+
     # Handle fractions
     for _ in range(3):  # Multiple passes to handle nesting
         result = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"(\1)/(\2)", result)

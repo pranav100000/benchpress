@@ -3,6 +3,7 @@
 from typing import List, Tuple
 
 import pytest
+
 from benchpress.extraction.base import ExtractionContext
 
 # Sample math problem responses with expected extractions

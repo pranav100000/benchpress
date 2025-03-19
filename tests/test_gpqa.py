@@ -4,6 +4,7 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from benchpress.datasets.gpqa_dataset import GpqaDataset
 from benchpress.datasets.gpqa_hf_dataset import GpqaHfDataset
 from benchpress.examples.gpqa import GpqaExample

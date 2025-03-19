@@ -2,6 +2,7 @@
 
 
 import pytest
+
 from benchpress.extraction import create_extractor
 from benchpress.extraction.general import GeneralExtractor
 from benchpress.extraction.math_utils import MathExtractor

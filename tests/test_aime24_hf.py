@@ -1,6 +1,7 @@
 """Tests for AIME24 Hugging Face dataset integration."""
 
 import pytest
+
 from benchpress.datasets.aime24_hf_dataset import Aime24HfDataset
 from benchpress.tasks.aime24 import Aime24Task
 
