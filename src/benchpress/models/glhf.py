@@ -3,6 +3,7 @@
 import os
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
+import tiktoken
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
@@ -14,7 +15,6 @@ from openai.types.chat.chat_completion_user_message_param import (
 )
 
 from .base import BaseModel
-import tiktoken
 
 
 class GlhfModel(BaseModel):
@@ -110,7 +110,7 @@ class GlhfModel(BaseModel):
             if should_stream:
                 # Stream the response and accumulate it
                 content = ""
-                
+
                 # Prepare parameters, removing any None values
                 params = self.sanitize_params(
                     {
@@ -123,7 +123,7 @@ class GlhfModel(BaseModel):
                     },
                     **kwargs,
                 )
-                
+
                 stream = await self._client.chat.completions.create(**params)
 
                 # Track approximate token counts for metadata
@@ -170,7 +170,7 @@ class GlhfModel(BaseModel):
                     },
                     **kwargs,
                 )
-                
+
                 response = await self._client.chat.completions.create(**params)
 
                 self._last_response = response
@@ -188,7 +188,7 @@ class GlhfModel(BaseModel):
                     **kwargs,
                 )
             raise  # Re-raise if not a timeout or if already streaming
-            
+
     async def stream_generate(
         self,
         prompt: str,
@@ -231,7 +231,7 @@ class GlhfModel(BaseModel):
         prompt_tokens = len(prompt) // 4  # Very rough estimate
         self._streamed_completion_tokens = 0
         self._streamed_total_tokens = prompt_tokens
-        
+
         # Create a streaming request
         try:
             # Prepare parameters, removing any None values
@@ -246,18 +246,18 @@ class GlhfModel(BaseModel):
                 },
                 **kwargs,
             )
-            
+
             stream = await self._client.chat.completions.create(**params)
 
             full_text = ""
             try:
                 async for chunk in stream:
                     # Check if delta exists and has content
-                    if (hasattr(chunk, 'choices') and chunk.choices and 
-                        hasattr(chunk.choices[0], 'delta') and 
+                    if (hasattr(chunk, 'choices') and chunk.choices and
+                        hasattr(chunk.choices[0], 'delta') and
                         hasattr(chunk.choices[0].delta, 'content') and
                         chunk.choices[0].delta.content):
-                        
+
                         content = chunk.choices[0].delta.content
                         full_text += content
                         # Roughly estimate tokens for metadata
@@ -289,11 +289,11 @@ class GlhfModel(BaseModel):
                 model=self._model_name,
                 object="chat.completion",
             )
-            
+
             # If nothing was yielded (empty response), yield an empty string
             if not full_text:
                 yield ""
-                
+
         except Exception as e:
             # If there's an error during streaming, yield the error message
             # and then stop streaming
@@ -325,7 +325,7 @@ class GlhfModel(BaseModel):
                 "model": self._last_response.model,
                 "id": self._last_response.id,
             }
-        
+
         # For streamed responses or responses without usage data, provide estimated counts
         if self._streamed_completion_tokens > 0:
             return {
@@ -337,7 +337,7 @@ class GlhfModel(BaseModel):
                 "model": self._model_name,
                 "streamed": True,
             }
-            
+
         # Fallback for other cases
         return {
             "model": self._model_name,

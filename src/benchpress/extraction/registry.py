@@ -4,7 +4,6 @@ from typing import Callable, Dict, Optional, Type
 
 from .base import BaseExtractor
 
-
 # Registry of extractors
 extractor_registry: Dict[str, Type[BaseExtractor]] = {}
 
@@ -22,7 +21,7 @@ def register_extractor(name: Optional[str] = None) -> Callable:
         extractor_name = name or cls.__name__
         extractor_registry[extractor_name] = cls
         return cls
-    
+
     return decorator
 
 

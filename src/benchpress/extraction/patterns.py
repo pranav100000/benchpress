@@ -1,7 +1,7 @@
 """Extraction patterns for the benchpress system."""
 
 import re
-from typing import Dict, List, Callable, Pattern, Any, Union
+from typing import Any, Dict, List
 
 # Pattern types for categorization
 PATTERN_TYPE_EXPLICIT = 'explicit'
@@ -25,9 +25,9 @@ _COMMON_PATTERNS = [
     },
     {
         'name': 'explicit_answer_marker',
-        'pattern': r"(?:ANSWER|Answer|answer)[:=]\s*([^\n]+)(?:\n|$)",
+        'pattern': r"(?:ANSWER|Answer|answer)[:=]\s*([^\n]+)(?:\n|$)(?!.*(?:ANSWER|Answer|answer)[:=])",
         'type': PATTERN_TYPE_EXPLICIT,
-        'base_confidence': 0.9,
+        'base_confidence': 0.95,
         'priority': 995,
     },
     {
@@ -58,7 +58,7 @@ _COMMON_PATTERNS = [
         'base_confidence': 0.8,
         'priority': 880,
     },
-    
+
     # Structural patterns
     {
         'name': 'boxed_content',
@@ -67,7 +67,7 @@ _COMMON_PATTERNS = [
         'base_confidence': 0.95,
         'priority': 990,
     },
-    
+
     # Positional patterns (lowest priority, lowest confidence)
     {
         'name': 'last_line',
@@ -182,16 +182,16 @@ _DOMAIN_PATTERNS = {
 
 def get_patterns_for_domain(domain: str) -> List[PatternDefinition]:
     """Get the appropriate patterns for a specific domain.
-    
+
     Args:
         domain: The domain identifier
-        
+
     Returns:
         List of patterns appropriate for the domain, sorted by priority
     """
     # Get domain-specific patterns, fall back to general patterns
     patterns = _DOMAIN_PATTERNS.get(domain.lower(), _COMMON_PATTERNS)
-    
+
     # Sort by priority (descending)
     return sorted(patterns, key=lambda p: p.get('priority', 0), reverse=True)
 
@@ -199,7 +199,7 @@ def get_patterns_for_domain(domain: str) -> List[PatternDefinition]:
 def get_common_patterns():
     """Legacy compatibility function."""
     from .base import ExtractionPattern, PatternType
-    
+
     # Convert to old format
     patterns = []
     for pattern in _COMMON_PATTERNS:
@@ -218,10 +218,10 @@ def get_common_patterns():
 def create_domain_pattern_set(domain: str):
     """Legacy compatibility function."""
     from .base import ExtractionPattern, PatternType
-    
+
     patterns = get_patterns_for_domain(domain)
     result = []
-    
+
     for pattern in patterns:
         pattern_type = getattr(PatternType, pattern['type'].upper())
         result.append(
@@ -233,5 +233,5 @@ def create_domain_pattern_set(domain: str):
                 pattern_type=pattern_type,
             )
         )
-    
+
     return result

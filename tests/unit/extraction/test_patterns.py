@@ -1,22 +1,11 @@
 """Tests for extraction patterns in benchpress."""
 
-import pytest
 import re
-from typing import List, Optional, Tuple
 
 from benchpress.extraction.base import ExtractionPattern, PatternType
 from benchpress.extraction.general import GeneralExtractor
 from benchpress.extraction.patterns import get_common_patterns
-from benchpress.extraction.registry import register_extractor, get_extractor
-
-from tests.fixtures.extraction_examples import (
-    extraction_context,
-    math_responses,
-    fraction_responses,
-    latex_responses,
-    negative_examples,
-    multi_extract_examples,
-)
+from benchpress.extraction.registry import get_extractor, register_extractor
 
 
 class TestExtractionPattern:
@@ -114,7 +103,7 @@ class TestCommonPatterns:
         class TestExtractor(GeneralExtractor):
             """Test extractor for registration."""
             pass
-        
+
         # Retrieve the extractor class
         retrieved = get_extractor("test_extractor")
         assert retrieved is not None
@@ -141,26 +130,26 @@ class TestCommonPatterns:
 
         # Create a list and sort it
         patterns = [pattern1, pattern2, pattern3]
-        
+
         # Sort them by priority (descending)
         sorted_patterns = sorted(patterns, key=lambda x: x.priority, reverse=True)
-        
+
         # Check that the order matches what we expect
         assert sorted_patterns[0].name == "high_priority"
         assert sorted_patterns[1].name == "medium_priority"
         assert sorted_patterns[2].name == "low_priority"
-        
+
         # Create a custom extractor and verify its pattern ordering
         class TestPriorityExtractor(GeneralExtractor):
             """Test extractor with custom patterns for priority testing."""
-            
+
             def __init__(self):
                 """Initialize with test patterns."""
                 super().__init__("test_priority")
                 self.patterns = [pattern1, pattern2, pattern3]
                 # Sort patterns by priority (descending)
                 self.patterns.sort(key=lambda x: x.priority, reverse=True)
-        
+
         extractor = TestPriorityExtractor()
         assert extractor.patterns[0].name == "high_priority"
         assert extractor.patterns[1].name == "medium_priority"
@@ -241,7 +230,7 @@ class TestPatternMatching:
 
         # The nested LaTeX test cases would need a more sophisticated regex
         # that can handle balanced braces or a special parsing function
-        
+
         # Let's use a simpler test case that our pattern should handle
         text2 = "The final answer is \\boxed{42 + 10}."
         match2 = re.search(pattern.pattern, text2)
@@ -276,7 +265,7 @@ class TestPatternMatching:
         match3 = re.search(pattern.pattern, text3, re.IGNORECASE)
         assert match3
         assert match3.group(1) == "123"
-        
+
         # Additional test cases for the improved pattern
         text4 = "The answer: 99"
         match4 = re.search(pattern.pattern, text4, re.IGNORECASE)

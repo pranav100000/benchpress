@@ -4,9 +4,10 @@ import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
-from datasets import load_dataset, Dataset as HfDataset
+from datasets import Dataset as HfDataset
+from datasets import load_dataset
 
 from .base import Dataset
 
@@ -68,10 +69,10 @@ class HuggingFaceDataset(Dataset[T]):
 
     async def _load_hf_dataset(self) -> HfDataset:
         """Load the Hugging Face dataset.
-        
+
         Returns:
             The loaded HF Dataset object
-            
+
         Raises:
             ValueError: If the dataset or split cannot be found
             RuntimeError: If there's an error loading the dataset
@@ -91,7 +92,7 @@ class HuggingFaceDataset(Dataset[T]):
                             revision=self.revision,
                             cache_dir=str(self._data_path) if self._data_path else None,
                             # Use token parameter if provided, otherwise fall back to use_auth_token
-                            **({"token": self.token} if self.token else 
+                            **({"token": self.token} if self.token else
                                {"use_auth_token": self.use_auth_token} if self.use_auth_token else {}),
                         )
                     )
@@ -99,7 +100,7 @@ class HuggingFaceDataset(Dataset[T]):
             except Exception as e:
                 logger.error(f"Error loading dataset {self.dataset_name}: {e}")
                 raise RuntimeError(f"Failed to load dataset {self.dataset_name}: {e}") from e
-                
+
         return self._hf_dataset
 
     async def load(self) -> List[T]:
@@ -107,7 +108,7 @@ class HuggingFaceDataset(Dataset[T]):
 
         Returns:
             List of examples
-            
+
         Raises:
             RuntimeError: If there's an error processing the dataset
         """
@@ -119,7 +120,7 @@ class HuggingFaceDataset(Dataset[T]):
 
             # Process the dataset - using a simpler approach to avoid threading issues
             logger.info(f"Processing {total_examples} examples...")
-            
+
             # Process items sequentially (more reliable than concurrent with HF datasets)
             # This might be slower but ensures correct handling
             for i in range(total_examples):
@@ -128,28 +129,28 @@ class HuggingFaceDataset(Dataset[T]):
                     item = hf_dataset[i]
                     example = self._process_item(i, item)
                     examples.append(example)
-                    
+
                     # Log progress occasionally
                     if i % 100 == 0 and i > 0:
                         logger.info(f"Processed {i}/{total_examples} examples")
                 except Exception as e:
                     logger.error(f"Error processing item {i}: {e}")
                     # Continue with the next item
-            
+
             logger.info(f"Successfully converted {len(examples)} examples")
             return examples
-            
+
         except Exception as e:
             logger.error(f"Error processing dataset: {e}")
             raise RuntimeError(f"Failed to process dataset: {e}") from e
 
     def _process_item(self, idx: int, item: Any) -> T:
         """Process a single dataset item into an example.
-        
+
         Args:
             idx: The item index in the dataset
             item: The dataset item (could be dict, arrow record, or other format)
-            
+
         Returns:
             An example object
         """
@@ -169,14 +170,14 @@ class HuggingFaceDataset(Dataset[T]):
                     # As a last resort, print the item type and create a minimal valid example
                     logger.error(f"Unexpected item type: {type(item)}")
                     raise TypeError(f"Cannot convert item of type {type(item)} to dict")
-            
+
             # Apply the mapper function to get the example parameters
             example_params = self.mapper(item)
-            
+
             # Add a default ID if none is provided
             if "id" not in example_params:
                 example_params["id"] = f"{self.name}_{idx}"
-            
+
             # Create the example
             return self.example_class(**example_params)
         except Exception as e:
@@ -190,39 +191,39 @@ class HuggingFaceDataset(Dataset[T]):
                 difficulty="medium",
                 metadata={"error": str(e), "source": "error"}
             )
-        
+
     async def get_item(self, idx: int) -> T:
         """Get a single example by index.
-        
+
         Args:
             idx: Index in the dataset
-            
+
         Returns:
             The example at the specified index
-            
+
         Raises:
             IndexError: If the index is out of range
         """
         hf_dataset = await self._load_hf_dataset()
         if idx < 0 or idx >= len(hf_dataset):
             raise IndexError(f"Index {idx} out of range for dataset with length {len(hf_dataset)}")
-        
+
         item = hf_dataset[idx]
         return self._process_item(idx, item)
-    
+
     async def get_size(self) -> int:
         """Get the size of the dataset.
-        
+
         Returns:
             Number of items in the dataset
         """
         hf_dataset = await self._load_hf_dataset()
         return len(hf_dataset)
-        
+
     @lru_cache(maxsize=32)
     async def get_subjects(self) -> List[str]:
         """Get the list of unique subjects in the dataset.
-        
+
         Returns:
             List of unique subject names
         """
@@ -230,11 +231,11 @@ class HuggingFaceDataset(Dataset[T]):
         if 'subject' in hf_dataset.features:
             return sorted(hf_dataset.unique('subject'))
         return []
-        
+
     @lru_cache(maxsize=32)
     async def get_levels(self) -> List[int]:
         """Get the list of unique levels in the dataset.
-        
+
         Returns:
             List of unique level values
         """
@@ -242,23 +243,23 @@ class HuggingFaceDataset(Dataset[T]):
         if 'level' in hf_dataset.features:
             return sorted(hf_dataset.unique('level'))
         return []
-        
+
     async def filter_by_subject(self, subject: str) -> List[T]:
         """Filter examples by subject.
-        
+
         Args:
             subject: The subject to filter by
-            
+
         Returns:
             List of examples with the specified subject
         """
         hf_dataset = await self._load_hf_dataset()
         if 'subject' not in hf_dataset.features:
-            logger.warning(f"Dataset does not have 'subject' field")
+            logger.warning("Dataset does not have 'subject' field")
             return []
-            
+
         filtered = hf_dataset.filter(lambda x: x['subject'] == subject)
-        
+
         # Process the filtered items
         examples = []
         for i, item in enumerate(filtered):
@@ -269,23 +270,23 @@ class HuggingFaceDataset(Dataset[T]):
                 # Skip problematic items
                 continue
         return examples
-        
+
     async def filter_by_level(self, level: int) -> List[T]:
         """Filter examples by level.
-        
+
         Args:
             level: The level to filter by
-            
+
         Returns:
             List of examples with the specified level
         """
         hf_dataset = await self._load_hf_dataset()
         if 'level' not in hf_dataset.features:
-            logger.warning(f"Dataset does not have 'level' field")
+            logger.warning("Dataset does not have 'level' field")
             return []
-            
+
         filtered = hf_dataset.filter(lambda x: x['level'] == level)
-        
+
         # Process the filtered items - concurrently for better performance
         loop = asyncio.get_event_loop()
         examples = []
@@ -306,5 +307,5 @@ class HuggingFaceDataset(Dataset[T]):
                 examples = [ex for ex in examples if not isinstance(ex, Exception)]
             except Exception as e:
                 logger.error(f"Error gathering filtered examples: {e}")
-        
+
         return examples

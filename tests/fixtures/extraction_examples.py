@@ -1,10 +1,9 @@
 """Test fixtures for extraction tests."""
 
+from typing import List, Tuple
+
 import pytest
-from typing import Dict, List, Tuple
-
 from benchpress.extraction.base import ExtractionContext
-
 
 # Sample math problem responses with expected extractions
 MATH_RESPONSES = [
@@ -23,7 +22,7 @@ MATH_RESPONSES = [
         2. f'(x) = 2x + 3
         3. Evaluate at x = 4
         4. f'(4) = 2(4) + 3 = 8 + 3 = 11
-        
+
         ANSWER: 11
         """,
         "11"
@@ -34,7 +33,7 @@ MATH_RESPONSES = [
         Area = (1/2) × base × height
         Area = (1/2) × 6 × 4
         Area = 12
-        
+
         Therefore, the answer is 12 square units.
         """,
         "12"
@@ -44,7 +43,7 @@ MATH_RESPONSES = [
         The equation 2x + 3 = 9 can be rearranged:
         2x = 6
         x = 3
-        
+
         FINAL ANSWER: 3
         """,
         "3"
@@ -58,7 +57,7 @@ MATH_RESPONSES = [
         n = (14 ± √16) / 2
         n = (14 ± 4) / 2
         n = 9 or n = 5
-        
+
         Since we need the larger value, n = 9.
         The answer is 9.
         """,
@@ -72,7 +71,7 @@ MATH_RESPONSES = [
         V = (4/3)π(125)
         V = (4/3)(125)π
         V = (500/3)π
-        
+
         The volume is \\boxed{\\frac{500\\pi}{3}} cubic units.
         """,
         "500π/3"
@@ -83,7 +82,7 @@ MATH_RESPONSES = [
 FRACTION_RESPONSES = [
     (
         """The probability is 3/7.
-        
+
         Therefore, the answer is 3/7.
         """,
         "3/7"
@@ -91,14 +90,14 @@ FRACTION_RESPONSES = [
     (
         """After simplifying the expression:
         x = 5/8
-        
+
         ANSWER: 5/8
         """,
         "5/8"
     ),
     (
         """The final value is \\frac{17}{42}.
-        
+
         Therefore, the answer is \\frac{17}{42}.
         """,
         "17/42"
@@ -109,14 +108,14 @@ FRACTION_RESPONSES = [
 LATEX_RESPONSES = [
     (
         """The solution is $\\alpha + \\beta = \\gamma$.
-        
+
         Therefore, $\\alpha = 42$.
         """,
         "42"
     ),
     (
         """The area of the circle is $A = \\pi r^2 = \\pi \\cdot 3^2 = 9\\pi$.
-        
+
         ANSWER: $9\\pi$
         """,
         "9π"

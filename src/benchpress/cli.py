@@ -2,7 +2,7 @@
 
 import asyncio
 import sys
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import typer
 from rich.console import Console
@@ -17,7 +17,7 @@ app = typer.Typer(
     name="benchpress",
     help="Benchpress: LLM evaluation framework for standardized benchmarks",
 )
-console = Console()
+console = Console(record=True)
 
 
 @app.command("list-tasks")

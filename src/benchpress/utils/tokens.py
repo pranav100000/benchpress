@@ -6,9 +6,9 @@ from typing import Optional
 
 def get_hf_token() -> Optional[str]:
     """Get the Hugging Face API token from environment variables.
-    
+
     Checks for HUGGINGFACE_API_TOKEN or HF_TOKEN environment variables.
-    
+
     Returns:
         The token if found, None otherwise
     """

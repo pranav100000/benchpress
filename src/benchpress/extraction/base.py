@@ -76,12 +76,12 @@ class BaseExtractor(ABC):
         """
         self.name = name
         self.patterns: List[ExtractionPattern] = []
-        
+
         # Add default patterns if provided
         if default_patterns:
             for pattern in default_patterns:
                 self.add_pattern(pattern)
-    
+
     def add_pattern(self, pattern: ExtractionPattern) -> None:
         """Add a pattern to the extractor.
 
@@ -91,7 +91,7 @@ class BaseExtractor(ABC):
         self.patterns.append(pattern)
         # Keep patterns sorted by priority (descending)
         self.patterns.sort(key=lambda p: p.priority, reverse=True)
-    
+
     @abstractmethod
     def extract(self, text: str, context: ExtractionContext) -> List[ExtractedAnswer]:
         """Extract answers from the given text.
@@ -104,12 +104,12 @@ class BaseExtractor(ABC):
             A list of extracted answers, ordered by confidence (highest first)
         """
         pass
-    
+
     def _compute_confidence(
-        self, 
-        match: Any, 
-        pattern: ExtractionPattern, 
-        position: Tuple[int, int], 
+        self,
+        match: Any,
+        pattern: ExtractionPattern,
+        position: Tuple[int, int],
         text_length: int
     ) -> float:
         """Compute confidence score for a match.
@@ -124,28 +124,28 @@ class BaseExtractor(ABC):
             Confidence score between 0 and 1
         """
         start, end = position
-        
+
         # Base confidence from pattern
         confidence = pattern.base_confidence
-        
+
         # Adjust based on pattern type
-        type_boost = {
-            PatternType.EXPLICIT: 0.3,    # Most confident
-            PatternType.STRUCTURAL: 0.2,  # Very confident
-            PatternType.DOMAIN: 0.1,      # Domain-specific
-            PatternType.POSITIONAL: 0.0,  # Position-based
-            PatternType.FALLBACK: -0.1,   # Last resort
+        type_boost: Dict[str, float] = {
+            PatternType.EXPLICIT.value: 0.3,    # Most confident
+            PatternType.STRUCTURAL.value: 0.2,  # Very confident
+            PatternType.DOMAIN.value: 0.1,      # Domain-specific
+            PatternType.POSITIONAL.value: 0.0,  # Position-based
+            PatternType.FALLBACK.value: -0.1,   # Last resort
         }
-        confidence += type_boost.get(pattern.pattern_type, 0.0)
-        
+        confidence += type_boost.get(pattern.pattern_type.value, 0.0)
+
         # Position factor (later in text is better)
         # Scale from 0.0 to 0.1 based on position
         position_factor = start / max(1, text_length)
         confidence += position_factor * 0.1
-        
+
         # Cap confidence between 0 and 1
         return max(0.0, min(1.0, confidence))
-    
+
     @abstractmethod
     def normalize(self, text: str, context: ExtractionContext) -> str:
         """Normalize an extracted answer.
@@ -158,3 +158,44 @@ class BaseExtractor(ABC):
             Normalized text
         """
         pass
+
+
+# Utility function for computing confidence scores from dict patterns
+def compute_confidence_score(
+    pattern: Dict[str, Any],
+    position: Tuple[int, int],
+    text_length: int
+) -> float:
+    """Compute confidence score for a pattern match.
+
+    Args:
+        pattern: The pattern that matched (dict format)
+        position: Start and end position of match
+        text_length: Total length of text
+
+    Returns:
+        Confidence score between 0 and 1
+    """
+    start, end = position
+    
+    # For dict-based patterns (from core.py)
+    base_confidence = pattern.get('base_confidence', 0.5)
+    pattern_type = pattern.get('type', 'fallback')
+    
+    # Adjust based on pattern type
+    type_boost: Dict[str, float] = {
+        'explicit': 0.3,    # Most confident
+        'structural': 0.2,  # Very confident
+        'domain': 0.1,      # Domain-specific
+        'positional': 0.0,  # Position-based
+        'fallback': -0.1,   # Last resort
+    }
+    confidence = base_confidence + type_boost.get(pattern_type, 0.0)
+    
+    # Position factor (later in text is better)
+    # Scale from 0.0 to 0.1 based on position
+    position_factor = start / max(1, text_length)
+    confidence += position_factor * 0.1
+    
+    # Cap confidence between 0 and 1
+    return max(0.0, min(1.0, confidence))

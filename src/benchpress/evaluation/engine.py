@@ -5,7 +5,12 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-from rich.console import Console
+from rich.console import Console, Group, Text
+from rich.live import Live
+from rich.panel import Panel
+from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
+
+from benchpress.utils.constants import CORRECT_ANSWER_BORDER_PANEL_COLOR, DEBUG_BORDER_PANEL_COLOR, INCORRECT_ANSWER_BORDER_PANEL_COLOR, MAX_REFRESH_RATE, MODEL_RESPONSE_BORDER_PANEL_COLOR, PANEL_WIDTH, QUESTION_BORDER_PANEL_COLOR
 
 from ..models.base import BaseModel
 from ..tasks.base import BaseTask
@@ -70,9 +75,6 @@ class EvaluationEngine:
         """
         # Check if the task already supports limiting through constructor
 
-        from rich.panel import Panel
-        from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
-
         if not self.silent and self.console:
             self.console.print(f"[bold]Loading examples for task:[/bold] {task.name}")
 
@@ -102,15 +104,11 @@ class EvaluationEngine:
 
         # Set up progress display if not in silent mode
         if not self.silent and self.console:
-            from rich.panel import Panel
-            from rich.console import Group
-            from rich.progress import Progress, BarColumn, TaskProgressColumn, TextColumn
-            
             # Add a live accuracy column to the progress bar with raw count
             accuracy_column = TextColumn(
                 "[bold green]Accuracy: {task.fields[accuracy]:.1%} ({task.fields[correct]}/{task.completed})[/bold green]"
             )
-            
+
             # Create progress bar component
             progress = Progress(
                 TextColumn("[progress.description]{task.description}"),
@@ -119,36 +117,36 @@ class EvaluationEngine:
                 accuracy_column,
                 console=self.console
             )
-            
+
             # Initialize progress bar with 0% accuracy
             task_id = progress.add_task(
-                f"Evaluating {task.name}", 
+                f"Evaluating {task.name}",
                 total=len(examples),
                 accuracy=0.0,
                 correct=0
             )
-            
+
             # Start the progress bar
             progress.start()
-            
+
             # Process examples
             try:
                 correct_count = 0
                 for i, example in enumerate(examples):
                     # Update example counter in progress description
                     progress.update(task_id, description=f"Evaluating {task.name} (Example {i+1}/{len(examples)})")
-                    
+
                     # Format the question for display using the unicodeit-based formatter
                     formatted_question = latex_to_unicode(example.question)
-                    
+
                     # Display the question in a panel directly (not inside the live display)
                     self.console.print("")  # Add spacing
                     self.console.print(
                         Panel(
                             formatted_question,
                             title=f"Question {i+1}/{len(examples)}",
-                            border_style="blue",
-                            width=120
+                            border_style=QUESTION_BORDER_PANEL_COLOR,
+                            width=PANEL_WIDTH
                         )
                     )
 
@@ -169,31 +167,26 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                     if self.streaming:
                         # Stop the progress bar before streaming
                         progress.stop()
-                        
+
                         # Initialize empty output
                         model_output = ""
-                        
-                        from rich.live import Live
-                        from rich.panel import Panel
-                        
                         # Initialize streaming content
                         streaming_content = ""
-                        model_output = ""
-                        
+
                         # Create a panel that we'll update with streaming content
                         streaming_panel = Panel(
                             "",
                             title="Model Response (Streaming...)",
-                            border_style="yellow",
-                            width=120,
+                            border_style=MODEL_RESPONSE_BORDER_PANEL_COLOR,
+                            width=PANEL_WIDTH,
                             height=None  # Allow panel to grow as needed
                         )
-                        
+
                         # Use a Live display for updating the panel
                         # Set refresh_per_second higher for more responsive updates
                         # Set auto_refresh=False to ensure we control when to refresh
                         # Set vertical_overflow="visible" to allow content to be scrollable
-                        with Live(streaming_panel, console=self.console, refresh_per_second=10, 
+                        with Live(streaming_panel, console=self.console, refresh_per_second=MAX_REFRESH_RATE,
                                  transient=False, auto_refresh=True, vertical_overflow="visible") as live:
                             async for chunk in self.model.stream_generate(
                                 prompt,
@@ -201,39 +194,39 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                             ):
                                 model_output += chunk
                                 streaming_content += chunk
-                                
+
                                 # Apply LaTeX formatting to the entire accumulated content
                                 formatted_streaming = latex_to_unicode(streaming_content)
-                                
+
                                 # Update the panel content with formatted text
                                 streaming_panel.renderable = formatted_streaming
                                 # Force a refresh to update the display
-                            
+
                             # After streaming completes, update the panel title
                             streaming_panel.title = "Model Response (Complete)"
                             # No need to reformat as we've been formatting all along
-                        
+
                         # Restart the progress bar
                         progress.start()
                     else:
                         # Standard non-streaming approach
                         # Show a "Generating..." message
-                        self.console.print("Generating response...", style="yellow")
-                        
+                        self.console.print("Generating response...", style=MODEL_RESPONSE_BORDER_PANEL_COLOR)
+
                         # Generate the response
                         model_output = await self.model.generate(
                             prompt,
                             max_tokens=self.max_tokens
                         )
-                        
+
                         # Format and display the complete response
                         formatted_output = latex_to_unicode(model_output)
                         self.console.print(
                             Panel(
                                 formatted_output,
                                 title="Model Response",
-                                border_style="yellow",
-                                width=120
+                                border_style=MODEL_RESPONSE_BORDER_PANEL_COLOR,
+                                width=PANEL_WIDTH
                             )
                         )
 
@@ -242,40 +235,37 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                     result.model_id = self.model.model_id
 
                     # Display the evaluation results directly in the console
-                    from rich.text import Text
-                    from rich.console import Group
-                    from rich.panel import Panel
-                    
+
                     result_items = []
-                    
+
                     # Add extracted answer if available
                     if result.metadata and "extracted_answer" in result.metadata:
                         extracted_answer = result.metadata["extracted_answer"]
                         formatted_answer = latex_to_unicode(extracted_answer)
-                        
+
                         # Create formatted answer text
                         answer_text = Text("Extracted Answer: ")
                         answer_text.append(formatted_answer, style="yellow bold")
                         result_items.append(answer_text)
-                        
+
                         # Show raw if it differs significantly
                         if formatted_answer != extracted_answer and len(extracted_answer) > 5:
                             raw_text = Text("Raw: ")
                             raw_text.append(extracted_answer, style="dim")
                             result_items.append(raw_text)
-                    
+
                     # Add correct/incorrect indicator
                     correct_style = "green" if result.correct else "red"
                     correct_text = "✓ CORRECT" if result.correct else "✗ INCORRECT"
                     result_items.append(Text(correct_text, style=f"bold {correct_style}"))
-                    
+
                     # Display the results panel
                     self.console.print(
                         Panel(
                             Group(*result_items),
                             title="Evaluation Results",
-                            border_style="green" if result.correct else "red",
-                            width=120
+                            border_style=CORRECT_ANSWER_BORDER_PANEL_COLOR if result.correct else INCORRECT_ANSWER_BORDER_PANEL_COLOR,
+                            width=PANEL_WIDTH
                         )
                     )
 
@@ -284,26 +274,26 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         raw_answer = str(example.answer)
                         # Format the answer using the unicodeit-based formatter
                         formatted_answer = latex_to_unicode(raw_answer)
-                        
+
                         # Create a panel for the reference answer
                         reference_texts = []
                         ref_text = Text("Reference Answer: ")
                         ref_text.append(formatted_answer, style="green bold")
                         reference_texts.append(ref_text)
-                        
+
                         # Show raw if it differs significantly
                         if formatted_answer != raw_answer and len(raw_answer) > 5:
                             raw_ref_text = Text("Raw reference: ")
                             raw_ref_text.append(raw_answer, style="dim")
                             reference_texts.append(raw_ref_text)
-                        
+
                         # Display the reference answer
                         self.console.print(
                             Panel(
                                 Group(*reference_texts),
                                 title="Reference Answer",
-                                border_style="green",
-                                width=120
+                                border_style=CORRECT_ANSWER_BORDER_PANEL_COLOR if result.correct else INCORRECT_ANSWER_BORDER_PANEL_COLOR,
+                                width=PANEL_WIDTH
                             )
                         )
 
@@ -314,29 +304,29 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                 "extracted_answer", "N/A")
 
                             # Get method and confidence
-                            method = result.metadata.get('extraction_method', 
+                            method = result.metadata.get('extraction_method',
                                     result.metadata.get('method', 'N/A'))
-                            
-                            confidence_val = result.metadata.get('extraction_confidence', 
+
+                            confidence_val = result.metadata.get('extraction_confidence',
                                              result.metadata.get('confidence', 'N/A'))
                             # Format confidence as float if it's a number
                             confidence = f"{float(confidence_val):.2f}" if isinstance(confidence_val, (int, float)) else confidence_val
-                            
+
                             # Create a panel for the debug info
                             debug_items = []
-                            
+
                             # Add debug info
                             debug_text = Text(f"Expected='{raw_expected}' vs Extracted='{raw_extracted}'", style="dim")
                             debug_items.append(debug_text)
                             debug_items.append(Text(f"Method: {method}, Confidence: {confidence}", style="dim"))
-                            
+
                             # Display the debug info
                             self.console.print(
                                 Panel(
                                     Group(*debug_items),
                                     title="Debug Information",
-                                    border_style="red",
-                                    width=120
+                                    border_style=DEBUG_BORDER_PANEL_COLOR,
+                                    width=PANEL_WIDTH
                                 )
                             )
 
@@ -344,50 +334,50 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         if self.debug:
                             # Display a header for the debug section
                             self.console.print("\n[bold]Detailed Debug Information:[/bold]")
-                            
+
                             # Display raw question
                             self.console.print(
                                 Panel(
                                     example.question,
                                     title="Raw Question",
-                                    border_style="blue",
-                                    width=120
+                                    border_style=QUESTION_BORDER_PANEL_COLOR,
+                                    width=PANEL_WIDTH
                                 )
                             )
-                            
+
                             # Display raw model output
                             self.console.print(
                                 Panel(
                                     model_output,
                                     title="Raw Model Response",
-                                    border_style="yellow",
-                                    width=120
+                                    border_style=MODEL_RESPONSE_BORDER_PANEL_COLOR,
+                                    width=PANEL_WIDTH
                                 )
                             )
-                            
+
                             # Get extraction details with safeguards
                             metadata = result.metadata or {}
                             extracted = metadata.get('extracted_answer', 'N/A')
                             method = metadata.get('extraction_method', metadata.get('method', 'N/A'))
-                            
+
                             # Handle confidence which could be a string, float, or missing
                             confidence_val = metadata.get('extraction_confidence', metadata.get('confidence', 'N/A'))
                             confidence = f"{float(confidence_val):.2f}" if isinstance(confidence_val, (int, float)) else confidence_val
-                            
+
                             extraction_details = [
                                 f"Extracted Answer: {extracted}",
                                 f"Method: {method}",
                                 f"Confidence: {confidence}",
                             ]
-                            
+
                             # Add additional extraction details if available
                             if 'pattern_type' in metadata:
                                 extraction_details.append(f"Pattern Type: {metadata['pattern_type']}")
-                                
+
                             if 'extractor' in metadata:
                                 extraction_details.append(f"Extractor: {metadata['extractor']}")
-                            
-                            if (result.metadata and 
+
+                            if (result.metadata and
                                 "alternative_answers" in result.metadata):
                                 alt_candidates = result.metadata["alternative_answers"]
                                 if alt_candidates:
@@ -397,35 +387,35 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                         alt_text = (f"- {c['text']} (method={c['method']}, "
                                                    f"confidence={c['confidence']})")
                                         extraction_details.append(alt_text)
-                            
+
                             # Display extraction details
                             self.console.print(
                                 Panel(
                                     "\n".join(extraction_details),
                                     title="Extraction Details",
-                                    border_style="green",
-                                    width=120
+                                    border_style=CORRECT_ANSWER_BORDER_PANEL_COLOR if result.correct else INCORRECT_ANSWER_BORDER_PANEL_COLOR,
+                                    width=PANEL_WIDTH
                                 )
                             )
 
                     # Add to results
                     results.append(result)
-                    
+
                     # Update correct count if the answer is correct
                     if result.correct:
                         correct_count += 1
-                    
+
                     # Calculate current accuracy
                     current_accuracy = correct_count / (i + 1)
-                    
+
                     # Update progress with new accuracy
                     progress.update(
-                        task_id, 
-                        advance=1, 
+                        task_id,
+                        advance=1,
                         accuracy=current_accuracy,
                         correct=correct_count
                     )
-            
+
             finally:
                 # Make sure to stop the progress bar
                 progress.stop()
@@ -457,7 +447,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                         prompt,
                         max_tokens=self.max_tokens
                     )
-                    
+
                 result = await task.evaluate_example(example, model_output)
                 result.model_id = self.model.model_id
                 results.append(result)

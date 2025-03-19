@@ -1,7 +1,8 @@
 """Explore the GPQA dataset from Hugging Face."""
 
-from datasets import load_dataset
 import json
+
+from datasets import load_dataset
 
 # Load the GPQA dataset
 dataset = load_dataset("openai/gpqa")
@@ -22,7 +23,7 @@ for i, example in enumerate(dataset["test"][:5]):
     print(f"Answer: {example['reference_answer']}")
     print(f"Subject: {example['subject']}")
     print(f"Primary category: {example['primary_category']}")
-    
+
 # Count examples by subject
 subjects = {}
 for example in dataset["test"]:
@@ -38,5 +39,5 @@ for subject, count in subjects.items():
 # Save a sample to a file for reference
 with open("gpqa_sample.json", "w") as f:
     json.dump(dataset["test"][:10], f, indent=2)
-    
+
 print("\nSample saved to gpqa_sample.json")

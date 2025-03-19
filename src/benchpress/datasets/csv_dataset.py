@@ -1,7 +1,6 @@
 """CSV dataset implementation for benchpress."""
 
 import csv
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 from .base import Dataset
@@ -61,14 +60,14 @@ class CsvDataset(Dataset[T]):
                 # Skip empty rows
                 if not any(row.values()):
                     continue
-                
+
                 # Apply the mapper function to get the example parameters
                 example_params = self.mapper(row)
-                
+
                 # Add a default ID if none is provided
                 if "id" not in example_params:
                     example_params["id"] = f"{self.name}_{i}"
-                
+
                 # Create the example
                 example = self.example_class(**example_params)
                 examples.append(example)

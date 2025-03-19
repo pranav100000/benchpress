@@ -6,7 +6,7 @@ from typing import List, Literal, Optional
 from ..datasets.gpqa_dataset import GpqaDataset
 from ..datasets.gpqa_hf_dataset import GpqaHfDataset
 from ..examples.gpqa import GpqaExample
-from ..extraction import ExtractionContext, extract_answer, ExtractedAnswer
+from ..extraction import ExtractedAnswer, ExtractionContext
 from ..utils import get_hf_token
 from ..utils.math_comparison import compare_answers
 from .base import BaseTask, TaskResult
@@ -130,7 +130,7 @@ class GpqaTask(BaseTask[GpqaExample]):
         # Use our comprehensive comparison approach for more consistent results
         # This will handle various formatting differences
         correct = compare_answers(extracted_answer.text, example.answer, domain="gpqa")
-        
+
         # For GPQA, we also want to do a fallback substring check if the above fails
         # This is less strict but catches cases where the answer is embedded in text
         if not correct and hasattr(extracted_answer, "text"):

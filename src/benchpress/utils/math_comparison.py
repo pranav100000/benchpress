@@ -32,18 +32,30 @@ def compare_answers(llm_answer: str, reference_answer: str, domain: str = "math"
 
     # 2. Basic normalization comparison
     # Use existing normalize_expression function for simple normalization
-    if normalize_expression(llm_answer) == normalize_expression(reference_answer):
+    normalized_llm_answer = normalize_expression(llm_answer)
+    normalized_ref_answer = normalize_expression(reference_answer)
+    if normalized_llm_answer == normalized_ref_answer:
+        return True
+    if normalized_llm_answer == reference_answer:
+        return True
+    if llm_answer == normalized_ref_answer:
         return True
 
     # 3. Mathematical comparison using SymPy (if in math domain)
     if domain.lower() in ("math", "math500", "aime24"):
         try:
             # Try mathematical comparison with SymPy
-            return compare_math_expressions(llm_answer, reference_answer)
+            if compare_math_expressions(llm_answer, reference_answer):
+                return True
+            if compare_math_expressions(normalized_llm_answer, reference_answer):
+                return True
+            if compare_math_expressions(llm_answer, normalized_ref_answer):
+                return True
         except Exception:
             # If SymPy comparison fails, we already tried normalization above
             pass
 
+    print(f"Failed to compare {llm_answer} and {reference_answer}")
     return False
 
 
@@ -148,45 +160,77 @@ def compare_expressions(expr1: str, expr2: str) -> bool:
 
 
 def normalize_expression(expr: str) -> str:
-    """Enhanced normalization for expressions that handles LaTeX and Unicode math.
-
-    Args:
-        expr: Expression to normalize
-
-    Returns:
-        Normalized expression
-    """
+    """Enhanced normalization for expressions that handles LaTeX and Unicode math."""
     if not expr:
         return ""
     
+    # Remove \boxed{}
+    expr = re.sub(r'\\boxed\{(.*?)\}', r'\1', expr)
+
+    # Remove all whitespace
+    expr = re.sub(r'\s+', '', expr)
+
+    # First convert \pm or ± to expanded form
+    pm_match = re.search(r'(.*?)(?:\\pm|±)(.*)', expr)
+    if pm_match:
+        base = pm_match.group(1).strip()
+        term = pm_match.group(2).strip()
+        expr = f"{base}+{term},{base}-{term}"
+
+    # Handle comma-separated expressions, but only if not within parentheses
+    if ',' in expr and not re.search(r'\([^,]*,[^,]*\)', expr):
+        parts = [part.strip() for part in expr.split(',')]
+        parts.sort()
+        expr = ','.join(parts)
+
     # Handle LaTeX text commands - very common in text answers
     expr = re.sub(r'\\text\{([^}]*)\}', r'\1', expr)
-    
+
     # Handle square root notation in different forms
     # LaTeX \sqrt{...}
     expr = re.sub(r'\\sqrt\{([^}]*)\}', r'sqrt(\1)', expr)
+    # LaTeX \sqrt without braces
+    expr = re.sub(r'\\sqrt(\d+)', r'sqrt(\1)', expr)
     # Unicode √
     expr = re.sub(r'√([a-zA-Z0-9]+)', r'sqrt(\1)', expr)
     # Handle √{...} notation
     expr = re.sub(r'√\{([^}]*)\}', r'sqrt(\1)', expr)
-    
+
     # Handle inline fractions with various notations
+    expr = re.sub(r'\\dfrac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
     expr = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
-    
+
     # Replace various pi symbols
     expr = expr.replace("π", "pi").replace("\\pi", "pi")
-    
+
     # Remove LaTeX command markers and braces
     expr = expr.replace("\\left", "").replace("\\right", "")
     expr = expr.replace("{", "").replace("}", "")
-    expr = expr.replace("\\", "")
-    
+
     # Remove dollar signs
     expr = expr.replace("$", "")
     
-    # Remove all whitespace
+    # Remove degree symbols (both LaTeX and unicode versions)
+    expr = re.sub(r'\^\\circ|\^∘', '', expr)
+    expr = re.sub(r'\\text\{\s*degrees\s*\}', '', expr)  # LaTeX form with \text
+    expr = re.sub(r'\s*degrees\s*', '', expr)  # Plain text form
+    expr = re.sub(r'°', '', expr)  # Unicode degree symbol
+
+    
+    # Remove suffixes matching _number pattern
+    expr = re.sub(r'_\d+$', '', expr)
+
+    # Or more comprehensively:
+    superscript_map = {'²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9'}
+    for sup, repl in superscript_map.items():
+        expr = expr.replace(sup, repl)
+        
+    # Remove all whitespace again (in case any was introduced)
     expr = re.sub(r'\s+', '', expr)
     
+    expr = expr.replace("\\", "")
+
+
     return expr.lower()
 
 
