@@ -6,7 +6,7 @@ from typing import List, Literal, Optional
 from ..datasets.gpqa_dataset import GpqaDataset
 from ..datasets.gpqa_hf_dataset import GpqaHfDataset
 from ..examples.gpqa import GpqaExample
-from ..extraction import ExtractedAnswer, ExtractionContext
+from ..extraction import ExtractedAnswer, ExtractionContext, extract_answer
 from ..utils import get_hf_token
 from ..utils.math_comparison import compare_answers
 from .base import BaseTask, TaskResult
@@ -16,6 +16,7 @@ from .registry import register_task
 @register_task
 class GpqaTask(BaseTask[GpqaExample]):
     """GPQA Diamond benchmark task implementation."""
+    # We use extract_answer directly from extraction module instead of instance attr
 
     def __init__(
         self,
@@ -97,35 +98,22 @@ class GpqaTask(BaseTask[GpqaExample]):
             metadata={"subject": example.subject}
         )
 
-        # Extract all candidate answers
-        candidate_answers = self._extractor.extract(model_output, extraction_context)
+        # Extract answers using the extraction system
+        candidates = extract_answer(model_output, extraction_context)
 
-        # Use the highest confidence answer if available
-        if candidate_answers and candidate_answers[0].confidence >= 0.3:
-            extracted_answer = candidate_answers[0]
+        # Get best answer or use fallback extraction
+        if candidates and candidates[0].confidence >= 0.3:
+            extracted_answer = candidates[0]
         else:
-            # Basic fallback extraction for GPQA
-            answer_pattern = r"(?:answer|result|solution):\s*(.+?)(?:$|\n)"
-            match = re.search(answer_pattern, model_output.lower(), re.DOTALL)
-
-            if match:
-                extracted_text = match.group(1).strip()
-                extracted_answer = ExtractedAnswer(
-                    text=extracted_text,
-                    pattern_name="fallback_regex",
-                    confidence=0.5,
-                    metadata={"pattern_type": "fallback"}
-                )
-            else:
-                # If no explicit answer format, try to extract the last sentence
-                sentences = re.split(r"(?<=[.!?])\s+", model_output)
-                extracted_text = sentences[-1].strip() if sentences else ""
-                extracted_answer = ExtractedAnswer(
-                    text=extracted_text,
-                    pattern_name="fallback_last_sentence",
-                    confidence=0.2,  # Low confidence for this method
-                    metadata={"pattern_type": "fallback"}
-                )
+            # Use last sentence as a fallback
+            sentences = re.split(r"(?<=[.!?])\s+", model_output)
+            extracted_text = sentences[-1].strip() if sentences else ""
+            extracted_answer = ExtractedAnswer(
+                text=extracted_text,
+                pattern_name="fallback_last_sentence",
+                confidence=0.2,
+                metadata={"pattern_type": "fallback"}
+            )
 
         # Use our comprehensive comparison approach for more consistent results
         # This will handle various formatting differences
@@ -139,22 +127,29 @@ class GpqaTask(BaseTask[GpqaExample]):
         # Prepare the metadata with extraction information
         metadata = {
             "extracted_answer": extracted_answer.text,
-            "extraction_confidence": extracted_answer.confidence,
+            "extraction_confidence": float(extracted_answer.confidence),
             "extraction_method": extracted_answer.pattern_name,
+            "method": extracted_answer.pattern_name,  # For backward compatibility
+            "confidence": float(extracted_answer.confidence),  # For backward compatibility
             "expected_answer": example.answer,
             "subject": example.subject,
             "difficulty": example.difficulty,
+            "pattern_type": extracted_answer.metadata.get("pattern_type", "unknown")
         }
 
-        # Include alternatives if available (other candidates)
-        alternative_answers = candidate_answers[1:] if len(candidate_answers) > 1 else []
-        if alternative_answers:
+        # Include alternatives if available
+        if len(candidates) > 1:
             metadata["alternative_answers"] = [
-                {"text": alt.text, "confidence": alt.confidence}
-                for alt in alternative_answers
+                {
+                    "text": c.text,
+                    "method": c.pattern_name,
+                    "confidence": float(c.confidence)
+                }
+                for c in candidates[1:3]  # Just include top alternatives
             ]
 
         return TaskResult(
+            question=example.question,
             example_id=example.id,
             model_id="",  # Will be filled in by the evaluation engine
             model_output=model_output,

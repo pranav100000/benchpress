@@ -126,15 +126,13 @@ Remember, AIME problems require exact answers, not decimal approximations."""
             }
         )
 
-        # Extract answers using the simplified extraction system
+        # Extract answers using the extraction system
         candidates = extract_answer(model_output, context)
 
         # Get the best answer (highest confidence)
-        extracted_answer = ""
-        if candidates:
-            extracted_answer = candidates[0].text
+        extracted_answer = candidates[0].text if candidates else ""
 
-        # Use comprehensive answer comparison
+        # Compare answers and determine correctness
         correct = compare_answers(extracted_answer, example.answer, domain="aime24")
 
         # Build metadata dictionary
@@ -148,16 +146,27 @@ Remember, AIME problems require exact answers, not decimal approximations."""
         # Add extraction details if available
         if candidates:
             best_candidate = candidates[0]
-            metadata["extraction_method"] = best_candidate.pattern_name
-            metadata["method"] = best_candidate.pattern_name  # Alternative key for backward compatibility
-            metadata["extraction_confidence"] = float(best_candidate.confidence)
-            metadata["confidence"] = float(best_candidate.confidence)  # Alternative key
+            metadata.update({
+                "extraction_method": best_candidate.pattern_name,
+                "method": best_candidate.pattern_name,  # Alternative key for backward compatibility
+                "extraction_confidence": float(best_candidate.confidence),
+                "confidence": float(best_candidate.confidence),  # Alternative key
+                "pattern_type": best_candidate.metadata.get("pattern_type", "unknown")
+            })
 
-            if best_candidate.metadata:
-                for key, value in best_candidate.metadata.items():
-                    metadata[key] = value
+            # Add alternative candidates info if available
+            if len(candidates) > 1:
+                metadata["alternative_answers"] = [
+                    {
+                        "text": c.text,
+                        "method": c.pattern_name,
+                        "confidence": float(c.confidence)
+                    }
+                    for c in candidates[1:3]  # Just include top alternatives
+                ]
 
         return TaskResult(
+            question=example.question,
             example_id=example.id,
             model_id="",  # Will be filled in by the evaluation engine
             model_output=model_output,
