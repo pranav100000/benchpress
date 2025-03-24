@@ -159,46 +159,121 @@ def compare_expressions(expr1: str, expr2: str) -> bool:
         return normalize_expression(expr1) == normalize_expression(expr2)
 
 
+def parse_fraction(expr: str) -> str:
+    """Parse and normalize fraction expressions.
+    
+    Args:
+        expr: Expression potentially containing fractions
+        
+    Returns:
+        Normalized fraction expression
+    """
+    # Replace first \frac{...}{...} or \dfrac{...}{...} we find with (...)/(...)
+    expr = re.sub(r'\\dfrac\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}', 
+                 r'(\1)/(\2)', expr, count=1)
+    expr = re.sub(r'\\frac\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}', 
+                 r'(\1)/(\2)', expr, count=1)
+    
+    return expr
+
+
 def normalize_expression(expr: str) -> str:
     """Enhanced normalization for expressions that handles LaTeX and Unicode math."""
     if not expr:
         return ""
 
-    # Remove \boxed{}
-    expr = re.sub(r'\\boxed\{(.*?)\}', r'\1', expr)
-
-    # Remove all whitespace
+    # Remove all whitespace first for consistent processing
     expr = re.sub(r'\s+', '', expr)
 
-    # First convert \pm or ± to expanded form
-    pm_match = re.search(r'(.*?)(?:\\pm|±)(.*)', expr)
-    if pm_match:
-        base = pm_match.group(1).strip()
-        term = pm_match.group(2).strip()
-        expr = f"{base}+{term},{base}-{term}"
+    # Only handle pmatrix notation if we detect both \begin{pmatrix} and \end{pmatrix}
+    if '\\begin{pmatrix}' in expr and '\\end{pmatrix}' in expr:
+        # First replace \\ with commas within the pmatrix environment
+        expr = re.sub(r'\\\\', ',', expr)
+        # Then convert the pmatrix environment to square brackets
+        expr = expr.replace('\\begin{pmatrix}', '[')
+        expr = expr.replace('\\end{pmatrix}', ']')
+    
+    # Remove LaTeX math mode delimiters
+    expr = re.sub(r'^\\\((.+?)\\\)$', r'\1', expr)
+    
+    # If there's an equals sign, take everything after it
+    if '=' in expr:
+        expr = expr.split('=')[-1]
+    
+    # Replace infinity with infty
+    expr = expr.replace('∞', 'infty')  # unicode infinity
+    expr = expr.replace('\\infty', 'infty')  # latex infinity
 
-    # Handle comma-separated expressions, but only if not within parentheses
-    if ',' in expr and not re.search(r'\([^,]*,[^,]*\)', expr):
-        parts = [part.strip() for part in expr.split(',')]
-        parts.sort()
-        expr = ','.join(parts)
+    # If there's a \in, take everything after it
+    if '\\in' in expr:
+        expr = expr.split('\\in')[-1]
 
-    # Handle LaTeX text commands - very common in text answers
-    expr = re.sub(r'\\text\{([^}]*)\}', r'\1', expr)
-
-    # Handle square root notation in different forms
+    # Remove \mbox and everything after it
+    expr = re.sub(r'\\mbox.*$', '', expr)
+    
+    # Remove LaTeX spacing commands with commas
+    expr = re.sub(r',\\!', '', expr)
+    
+    # Parse LaTeX fractions (repeatedly until no more fractions found)
+    while '\\frac' in expr or '\\dfrac' in expr:
+        print(f"Parsing fraction: {expr}")
+        expr = parse_fraction(expr)
+    
+    # Normalize special symbols first
+    expr = expr.replace('∪', ',')  # convert union to comma
+    expr = expr.replace('\\cup', ',')  # convert \cup to comma
+    
+    # Remove parentheses from intervals
+    expr = re.sub(r'\((.*?)\)', r'\1', expr)
+    expr = re.sub(r'\\left\((.*?)\\right\)', r'\1', expr)
+    
+    # Handle \text{...} content - remove unnecessary parentheses inside \text
+    expr = re.sub(r'\\text\{[(\s]*([^}]*?)[)\s]*\}', r'\1', expr)
+    
+    # Remove decorative LaTeX commands like \boxed first
+    expr = re.sub(r'\\boxed\{([^}]*)\}', r'\1', expr)
+    
+    # Handle square root notation in different forms first
     # LaTeX \sqrt{...}
     expr = re.sub(r'\\sqrt\{([^}]*)\}', r'sqrt(\1)', expr)
     # LaTeX \sqrt without braces
     expr = re.sub(r'\\sqrt(\d+)', r'sqrt(\1)', expr)
-    # Unicode √
-    expr = re.sub(r'√([a-zA-Z0-9]+)', r'sqrt(\1)', expr)
-    # Handle √{...} notation
-    expr = re.sub(r'√\{([^}]*)\}', r'sqrt(\1)', expr)
+    # Unicode √ - make sure to only capture what's meant to be inside the root
+    expr = re.sub(r'√(\d+|{[^}]*})', r'sqrt(\1)', expr)
+    expr = re.sub(r'√([a-zA-Z])', r'sqrt(\1)', expr)
 
-    # Handle inline fractions with various notations
-    expr = re.sub(r'\\dfrac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
-    expr = re.sub(r'\\frac\{([^}]*)\}\{([^}]*)\}', r'(\1)/(\2)', expr)
+    # Handle \pm or ± expansion
+    pm_match = re.search(r'(.*?)(?:\\pm|±)(.*)', expr)
+    if pm_match:
+        base = pm_match.group(1).strip()
+        term = pm_match.group(2).strip()
+        # Sort the terms to ensure consistent ordering
+        terms = sorted([f"{base}+{term}", f"{base}-{term}"])
+        expr = ','.join(terms)
+
+    # Remove formatting commas in numbers
+    expr = re.sub(r'(\d),(\d)', r'\1\2', expr)
+    
+    # Handle fractions more flexibly
+    expr = re.sub(r'\\dfrac\s*(\{[^}]*\}|\d+)\s*(\{[^}]*\}|\d+)', r'(\1)/(\2)', expr)
+    expr = re.sub(r'\\frac\s*(\{[^}]*\}|\d+)\s*(\{[^}]*\}|\d+)', r'(\1)/(\2)', expr)
+    
+    # Handle comma-separated lists by sorting
+    if ',' in expr:
+        parts = expr.split(',')
+        # Only skip sorting for explicit coordinate pairs like (1,2)
+        if not (expr.startswith('(') and expr.endswith(')')):
+            parts = sorted(parts)
+            expr = ','.join(parts)
+
+    # Remove ) and any ( that comes after it
+    expr = re.sub(r'\)([^)]*)\(', r'\1', expr)
+
+    # Remove unnecessary parentheses
+    expr = re.sub(r'^\((.*)\)$', r'\1', expr)
+
+    # Remove all whitespace
+    expr = re.sub(r'\s+', '', expr)
 
     # Replace various pi symbols
     expr = expr.replace("π", "pi").replace("\\pi", "pi")
@@ -216,11 +291,10 @@ def normalize_expression(expr: str) -> str:
     expr = re.sub(r'\s*degrees\s*', '', expr)  # Plain text form
     expr = re.sub(r'°', '', expr)  # Unicode degree symbol
 
-
     # Remove suffixes matching _number pattern
     expr = re.sub(r'_\d+$', '', expr)
 
-    # Or more comprehensively:
+    # Convert superscript numbers to ^n form
     superscript_map = {'²': '^2', '³': '^3', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9'}
     for sup, repl in superscript_map.items():
         expr = expr.replace(sup, repl)
@@ -228,9 +302,10 @@ def normalize_expression(expr: str) -> str:
     # Remove all whitespace again (in case any was introduced)
     expr = re.sub(r'\s+', '', expr)
 
+    # Remove backslashes last
     expr = expr.replace("\\", "")
 
-
+    print(f"Normalized expression: {expr}")
     return expr.lower()
 
 

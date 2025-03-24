@@ -10,6 +10,7 @@ from ..examples.base import Example
 @dataclass
 class TaskResult:
     """The result of evaluating a model on a task example."""
+    question: str
 
     example_id: str
     model_id: str
@@ -21,6 +22,8 @@ class TaskResult:
     raw_output: Optional[str] = None
     example_index: Optional[int] = None
     total_examples: Optional[int] = None
+    raw_question: Optional[str] = None
+
 
 
 T = TypeVar("T", bound=Example)

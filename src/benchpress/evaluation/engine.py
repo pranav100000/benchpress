@@ -4,7 +4,7 @@ import asyncio
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from rich.console import Console, Group, Text
 from rich.live import Live
@@ -44,13 +44,14 @@ class EvaluationEngine:
     def __init__(
         self,
         model: BaseModel,
-        output_dir: Optional[Union[str, Path]] = None,
+        output_dir: str = (Path.cwd() / 'results').as_posix(),
         silent: bool = False,
         debug: bool = False,
         console: Optional[Console] = None,
         streaming: bool = False,
         max_tokens: Optional[int] = None,
         sequential: bool = False,
+        max_concurrency: int = 5,
     ):
         """Initialize the evaluation engine.
 
@@ -63,15 +64,18 @@ class EvaluationEngine:
             streaming: Whether to use streaming API for model generation (optional)
             max_tokens: Maximum number of tokens to generate (optional)
             sequential: Whether to process examples sequentially (optional, defaults to False)
+            max_concurrency: Maximum number of concurrent requests when running in parallel (optional, defaults to 5)
         """
         self.model = model
-        self.output_dir = Path(output_dir) if output_dir else None
+        self.output_dir = Path(output_dir) if output_dir else (Path.cwd() / 'results').as_posix()
         self.silent = silent
         self.debug = debug
         self.console = console
         self.streaming = streaming
         self.max_tokens = max_tokens
         self.sequential = sequential
+        self.max_concurrency = max_concurrency
+        self.results_dict: Dict[str, TaskResult] = {}
 
     def get_prompt(self, question: str) -> str:
         """Get the prompt for a question.
@@ -127,6 +131,9 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
         result.model_id = self.model.model_id
 
         # Store additional information for display
+        result.question = latex_to_unicode(example.question, colorize=False)
+        result.raw_question = example.question
+        result.model_output = latex_to_unicode(model_output, colorize=False)
         result.raw_output = model_output
         result.example_index = example_index
         result.total_examples = total_examples
@@ -450,10 +457,18 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                             correct=correct_count
                         )
                 else:
-                    # Process examples in parallel
-                    # Create tasks for parallel processing
+                    # Process examples in parallel with concurrency limit
+                    # Create a semaphore to limit concurrency
+                    semaphore = asyncio.Semaphore(self.max_concurrency)
+
+                    # Define wrapper function to apply semaphore
+                    async def process_with_semaphore(task_obj: BaseTask, ex: Any, idx: int, total: int) -> TaskResult:
+                        async with semaphore:
+                            return await self.process_example(task_obj, ex, idx, total)
+
+                    # Create tasks for parallel processing with semaphore
                     tasks = [
-                        self.process_example(task, example, i, len(examples))
+                        process_with_semaphore(task, example, i, len(examples))
                         for i, example in enumerate(examples)
                     ]
 
@@ -461,6 +476,10 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                     processed_count = 0
                     correct_count = 0
                     results = []
+
+                    # Show concurrency info
+                    if self.console and not self.silent:
+                        self.console.print(f"[cyan]Running with max concurrency:[/cyan] {self.max_concurrency}")
 
                     # Set up for collecting results
                     pending = set(asyncio.create_task(t) for t in tasks)
@@ -496,6 +515,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                                     accuracy=current_accuracy,
                                     correct=correct_count
                                 )
+                                self.results_dict[result.example_index] = result
                             except Exception as e:
                                 if self.console:
                                     self.console.print(f"[red]Error processing example:[/red] {str(e)}")
@@ -528,29 +548,41 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                     result.model_id = self.model.model_id
                     results.append(result)
             else:
-                # Process in parallel in silent mode
+                # Process in parallel in silent mode with concurrency limit
+                semaphore = asyncio.Semaphore(self.max_concurrency)
+
+                # Define wrapper function to apply semaphore
+                async def process_with_semaphore(task_obj: BaseTask, ex: Any, idx: int, total: int) -> TaskResult:
+                    async with semaphore:
+                        return await self.process_example(task_obj, ex, idx, total)
+
+                # Create tasks with semaphore
                 tasks = [
-                    self.process_example(task, example, i, len(examples))
+                    process_with_semaphore(task, example, i, len(examples))
                     for i, example in enumerate(examples)
                 ]
 
                 # Wait for all tasks to complete
                 results = await asyncio.gather(*tasks)
 
-        # Save results to file if output directory is specified
-        if self.output_dir:
-            self.output_dir.mkdir(parents=True, exist_ok=True)
-            # Sanitize the model ID to create a valid filename
-            sanitized_model_id = self.model.model_id.replace("/", "_").replace(":", "_")
-            output_file = (
-                self.output_dir / f"{task.name}_{sanitized_model_id}_results.json"
-            )
-            with open(output_file, "w") as f:
-                json.dump([asdict(result) for result in results], f, indent=2)
+        # # Save results to file if output directory is specified
+        # if self.output_dir:
+        #     self.output_dir.mkdir(parents=True, exist_ok=True)
+        #     # Sanitize the model ID to create a valid filename
+        #     sanitized_model_id = self.model.model_id.replace("/", "_").replace(":", "_")
+        #     output_file = (
+        #         self.output_dir / f"{task.name}_{sanitized_model_id}_results.json"
+        #     )
+        #     with open(output_file, "w") as f:
+        #         json.dump([asdict(result) for result in results], f, indent=2)
 
         # Compute summary
         correct = sum(1 for result in results if result.correct)
         accuracy = correct / len(results) if results else 0.0
+
+
+        self._write_results_to_json(task.name)
+
 
         return EvaluationSummary(
             task_name=task.name,
@@ -562,3 +594,14 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                 "model_metadata": self.model.get_response_metadata(),
             },
         )
+
+    def _write_results_to_json(self, task_name: str):
+        output_path = Path(self.output_dir)
+        serializable_results = {
+            str(idx): asdict(result)
+            for idx, result in sorted(self.results_dict.items(), key=lambda x: x[0])
+        }
+        with open(output_path / f"{task_name}.json", "w") as f:
+            json.dump(serializable_results, f, indent=2, ensure_ascii=False)
+        print(f"output_dir: {self.output_dir}")
+

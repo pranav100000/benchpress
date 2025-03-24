@@ -25,6 +25,13 @@ Benchpress is a modern Python framework for evaluating Large Language Models (LL
 - Real-time evaluation statistics with progress tracking
 - Debug mode for detailed extraction information
 - Clean, consistent API for benchmark execution and result analysis
+- **Parallel processing mode for faster evaluations**
+- **Mathematical equivalence checking with SymPy**
+- **Configurable timeout settings for API requests**
+- **HuggingFace Datasets integration for efficient data loading**
+- **Custom system prompts for model instruction**
+- **Example ID filtering for targeted evaluations**
+- **Result caching to avoid redundant API calls**
 
 ## Installation
 
@@ -95,6 +102,12 @@ benchpress evaluate --task math500 --model openai:gpt-4 --id "example_id"
 
 # Or provide the API key directly
 benchpress evaluate --task aime24 --model openai:gpt-4 --api-key "your-api-key" --limit 1
+
+# Enable parallel processing for faster evaluation
+benchpress evaluate --task math500 --model openai:gpt-4 --parallel
+
+# Set custom timeout values
+benchpress evaluate --task math500 --model openai:gpt-4 --request-timeout 90
 ```
 
 ### Using other OpenAI-compatible APIs
@@ -140,6 +153,72 @@ This produces:
 - A combined accuracy report showing performance across all tasks
 - An overall accuracy metric that aggregates results from all evaluated examples
 
+## Parallel Processing
+
+Benchpress includes an advanced parallel processing mode that significantly speeds up evaluations:
+
+```bash
+# Enable parallel processing
+benchpress evaluate --task math500 --model openai:gpt-4 --parallel
+
+# Adjust concurrency level (default is 4)
+benchpress evaluate --task math500 --model openai:gpt-4 --parallel --concurrency 8
+
+# Combine with streaming (streams will be interleaved)
+benchpress evaluate --task math500 --model openai:gpt-4 --parallel --stream
+
+# Set custom timeout values for parallel processing
+benchpress evaluate --task math500 --model openai:gpt-4 --parallel --wait-timeout 120
+```
+
+Benefits of parallel processing:
+- Significantly faster evaluations, especially for large benchmarks
+- Built-in concurrency control to prevent API rate limiting
+- Automatic task cancellation for hanging requests
+- Configurable timeouts for better error handling
+
+**Note:** Parallel processing uses asyncio and may show interleaved outputs when combined with streaming.
+
+## Timeout Configuration
+
+Benchpress provides configurable timeouts to handle API delays and prevent hanging:
+
+```bash
+# Set custom API request timeout (in seconds)
+benchpress evaluate --task math500 --model openai:gpt-4 --request-timeout 90
+
+# Set custom streaming timeout
+benchpress evaluate --task math500 --model openai:gpt-4 --stream --streaming-timeout 180
+
+# Set custom task timeout
+benchpress evaluate --task math500 --model openai:gpt-4 --task-timeout 240
+
+# Set parallel wait timeout (for asyncio.wait)
+benchpress evaluate --task math500 --model openai:gpt-4 --parallel --wait-timeout 120
+```
+
+Default timeout values:
+- API_REQUEST_TIMEOUT: 60s
+- STREAMING_TIMEOUT: 120s
+- TASK_TIMEOUT: 180s
+- PARALLEL_WAIT_TIMEOUT: 60s
+
+## Mathematical Expression Comparison
+
+Benchpress uses SymPy to perform mathematical equivalence checking between model outputs and expected answers:
+
+```bash
+# Enable debug mode to see detailed comparison information
+benchpress evaluate --task math500 --model openai:gpt-4 --debug
+```
+
+Features of the math comparison system:
+- Symbolic mathematical equivalence checking
+- Support for various formats (fractions, decimals, expressions)
+- Normalization of mathematical notation
+- Multiple comparison strategies with fallbacks
+- Handles LaTeX and plain text mathematical expressions
+
 ## Adding New Tasks
 
 1. Create a new file in `src/benchpress/tasks/` for your task
@@ -164,6 +243,32 @@ class MyNewTask(BaseTask):
     
     # Implement other required methods
 ```
+
+## HuggingFace Datasets Integration
+
+Benchpress provides seamless integration with HuggingFace Datasets for efficient data loading:
+
+```python
+from benchpress.datasets.huggingface_dataset import HuggingFaceDataset
+
+# Load a dataset from the Hugging Face Hub
+dataset = HuggingFaceDataset(
+    dataset_name="HuggingFaceH4/math-500",
+    split="test",
+    question_column="input",
+    answer_column="target",
+)
+
+# Access examples
+examples = dataset.get_examples()
+```
+
+Advanced features:
+- Caching for faster repeated access
+- Efficient memory mapping with Arrow files
+- Support for dataset streaming
+- Custom data transformations
+- Filter and sample datasets
 
 ## Answer Extraction System
 
@@ -225,6 +330,24 @@ During streaming, you'll see:
 - The model's response appear token-by-token as it's generated
 - LaTeX expressions properly formatted in the terminal
 - The panel title changes from "Streaming..." to "Complete" when done
+
+### Custom System Prompts
+
+Benchpress allows you to provide custom system prompts to guide model behavior:
+
+```bash
+# Use a custom system prompt
+benchpress evaluate --task math500 --model openai:gpt-4 --system-prompt "You are a math genius who solves problems step-by-step."
+
+# Use different system prompts for different tasks
+benchpress evaluate --task aime24 --model glhf:meta-llama/Meta-Llama-3.1-8B-Instruct --system-prompt "You are a math competition expert."
+```
+
+This is particularly useful for:
+- Setting the model's role and persona
+- Providing domain-specific instructions
+- Encouraging step-by-step reasoning
+- Standardizing model behavior across providers
 
 ### Debugging Extraction
 

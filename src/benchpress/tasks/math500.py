@@ -234,6 +234,8 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                 metadata["alternative_answers"] = alt_answers
 
         return TaskResult(
+            question=example.question,
+            raw_question=example.question,
             example_id=example.id,
             model_id="",  # Will be filled in by the evaluation engine
             model_output=model_output,

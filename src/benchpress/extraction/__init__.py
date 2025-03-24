@@ -8,8 +8,6 @@ with support for different types of questions and answer formats.
 from .core import (
     ExtractedAnswer,
     ExtractionContext,
-    ExtractionPattern,
-    PatternType,
     extract_answer,
 )
 from .patterns import get_patterns_for_domain
@@ -26,8 +24,6 @@ __all__ = [
     # Main API
     "ExtractionContext",
     "ExtractedAnswer",
-    "ExtractionPattern",
-    "PatternType",
     "extract_answer",
     "normalize_answer",
     "get_patterns_for_domain",
