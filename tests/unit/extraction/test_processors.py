@@ -1,6 +1,7 @@
 """Tests for extraction processors in benchpress."""
 
 import pytest
+
 from benchpress.extraction.processors import (
     clean_whitespace,
     normalize_math_answer,

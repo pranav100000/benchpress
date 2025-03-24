@@ -78,6 +78,14 @@ def evaluate(
         False, "--stream", "--streaming",
         help="Stream model responses in real-time as they're generated"
     ),
+    sequential: bool = typer.Option(  # noqa: B008
+        False, "--sequential",
+        help="Process examples sequentially instead of in parallel"
+    ),
+    max_concurrency: int = typer.Option(  # noqa: B008
+        5, "--max-concurrency",
+        help="Maximum number of concurrent requests when running in parallel mode (default: 5)"
+    ),
 ) -> None:
     """Evaluate a model on one or more benchmark tasks."""
     # Validate tasks
@@ -134,6 +142,8 @@ def evaluate(
         console=console,
         streaming=streaming,
         max_tokens=max_tokens,
+        sequential=sequential,
+        max_concurrency=max_concurrency,
     )
 
     # Prepare results table
@@ -172,6 +182,7 @@ def evaluate(
             error_msg = str(e)
             console.print(f"[red]Error evaluating {task_name}:[/red] {error_msg}")
             errors.append((task_name, error_msg))
+            raise e
 
     # Display results
     if all_summaries:

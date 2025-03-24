@@ -1,6 +1,7 @@
 """Tests for the MATH-500 benchmark task."""
 
 import pytest
+
 from benchpress.tasks.math500 import Math500Task
 
 

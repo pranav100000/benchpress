@@ -5,10 +5,11 @@ model outputs with support for different types of questions and answer formats.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple, Pattern as RegexPattern
+from typing import Any, Dict, List, Optional, Tuple
+from typing import Pattern as RegexPattern
 
 # Import shared classes from base module to avoid duplication
-from .base import ExtractionContext, ExtractionPattern, ExtractedAnswer, PatternType
+from .base import ExtractedAnswer, ExtractionContext
 
 
 def extract_answer(
@@ -42,7 +43,7 @@ def extract_answer(
         for match_text, position in matches:
             # Compute confidence
             confidence = _compute_confidence(pattern, position, len(text))
-            
+
             # Apply normalization if requested
             normalized = None
             if normalize_answers:
