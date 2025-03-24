@@ -1,6 +1,5 @@
 """MATH-500 benchmark task."""
 
-import re
 from typing import List, Optional
 
 from ..datasets.math500_hf_dataset import Math500HfDataset
@@ -54,79 +53,7 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
 - No additional text
 - Just the number or expression itself"""
 
-    def _normalize_math_answer(self, answer: str) -> str:
-        """Normalize a math answer for more robust comparison.
-
-        Args:
-            answer: The answer string to normalize
-
-        Returns:
-            Normalized answer string
-        """
-        if not answer:
-            return ""
-
-        # Remove "ANSWER:" marker
-        answer = re.sub(
-            r'^ANSWER:\s*',
-            '',
-            answer
-        )
-
-        # Special case for coordinate pairs with fractions - the issue we're fixing
-        # Pattern for LaTeX coordinate pairs with fractions like \left( 3, \frac{\pi}{2} \right)
-        latex_coord_match = re.search(r'\\left\s*\(\s*(\d+)\s*,\s*\\frac\s*\{\\pi\}\s*\{(\d+)\}\s*\\right\s*\)', answer)
-        if latex_coord_match:
-            x_value = latex_coord_match.group(1)
-            denom = latex_coord_match.group(2)
-            return f"({x_value},π/{denom})"
-
-        # Regular coordinate pairs like (3,π/2)
-        simple_coord_match = re.search(r'\(\s*(\d+)\s*,\s*π/(\d+)\s*\)', answer)
-        if simple_coord_match:
-            x_value = simple_coord_match.group(1)
-            denom = simple_coord_match.group(2)
-            return f"({x_value},π/{denom})"
-
-        # Replace LaTeX fractions with division notation
-        answer = re.sub(r"\\frac{([^}]+)}{([^}]+)}", r"\1/\2", answer)
-        answer = re.sub(r"\\dfrac{([^}]+)}{([^}]+)}", r"\1/\2", answer)
-
-        # Remove LaTeX formatting
-        answer = answer.replace("\\left", "")
-        answer = answer.replace("\\right", "")
-        answer = answer.replace("\\", "")
-        answer = answer.replace("{", "")
-        answer = answer.replace("}", "")
-        answer = answer.replace("$", "")
-        answer = answer.replace(" ", "")
-
-        # Replace LaTeX special symbols
-        answer = answer.replace("pi", "π")
-
-        # Normalize fractions (both numeric and symbolic)
-        try:
-            # Check for numeric fractions first
-            if "/" in answer:
-                parts = answer.split("/")
-                if len(parts) == 2:
-                    # For numeric fractions, standardize the form but don't convert to decimal
-                    if all(part.strip().isdigit() for part in parts):
-                        num = int(parts[0].strip())
-                        denom = int(parts[1].strip())
-                        if denom != 0:  # Avoid division by zero
-                            answer = f"{num}/{denom}"
-                    # For symbolic fractions like p/q, n/k, standardize to lowercase
-                    elif len(parts[0].strip()) == 1 and len(parts[1].strip()) == 1:
-                        p1 = parts[0].strip()
-                        p2 = parts[1].strip()
-                        if p1.isalpha() and p2.isalpha():
-                            answer = f"{p1.lower()}/{p2.lower()}"
-        except Exception:
-            # If normalization fails, keep the original
-            pass
-
-        return answer.strip().lower()
+    # Removed _normalize_math_answer - now using the central utility in extraction.processors
 
     async def load_examples(self) -> List[Math500Example]:
         """Load MATH-500 examples from HuggingFace dataset.
@@ -183,47 +110,37 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
             }
         )
 
-        # Extract answers using the simplified extraction system
+        # Extract answers using the extraction system
         candidates = extract_answer(model_output, context)
 
         # Get the best answer (highest confidence)
-        extracted_answer = ""
-        if candidates:
-            extracted_answer = candidates[0].text
+        extracted_answer = candidates[0].text if candidates else ""
 
-        # Get the expected answer
-        expected_answer = example.answer
-
-        # Compare answers using our comprehensive multi-tier comparison approach
-        # This checks raw, normalized, and mathematical equivalence
-        correct = compare_answers(extracted_answer, expected_answer, domain="math500")
+        # Compare answers and determine correctness
+        correct = compare_answers(extracted_answer, example.answer, domain="math500")
 
         # Create detailed metadata
         metadata: dict[str, object] = {
             "extracted_answer": extracted_answer,
-            "expected_answer": expected_answer,
+            "expected_answer": example.answer,
             "category": example.category,
             "difficulty": example.difficulty,
         }
 
         # Add extraction details if available
         if candidates:
-            # Set both canonical and alternative keys for backward compatibility
             best_candidate = candidates[0]
-            metadata["extraction_method"] = best_candidate.pattern_name
-            metadata["method"] = best_candidate.pattern_name  # Alternative key
-
-            # Convert confidence to float and store in two formats
-            confidence_float = float(best_candidate.confidence)
-            metadata["extraction_confidence"] = confidence_float
-            metadata["confidence"] = confidence_float  # Alternative key
-
-            # Store info about how it was extracted
-            metadata["pattern_type"] = best_candidate.metadata.get("pattern_type", "unknown")
+            metadata.update({
+                "extraction_method": best_candidate.pattern_name,
+                "method": best_candidate.pattern_name,  # Alternative key for backward compatibility
+                "extraction_confidence": float(best_candidate.confidence),
+                "confidence": float(best_candidate.confidence),  # Alternative key
+                "pattern_type": best_candidate.metadata.get("pattern_type", "unknown")
+            })
 
             # Add alternative candidates info if available
             if len(candidates) > 1:
-                alt_answers = [
+                metadata["alternative_answers"] = [
                     {
                         "text": c.text,
                         "method": c.pattern_name,
@@ -231,7 +148,6 @@ IMPORTANT: The answer must be ONLY the numeric or algebraic result with:
                     }
                     for c in candidates[1:3]  # Just include top alternatives
                 ]
-                metadata["alternative_answers"] = alt_answers
 
         return TaskResult(
             question=example.question,
